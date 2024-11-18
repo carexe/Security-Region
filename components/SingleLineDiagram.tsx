@@ -14,7 +14,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
   const busPositions = {
     1: { x: 350, y: 100 },
     2: { x: 650, y: 100 },
-    3: { x: 500, y: 500 },
+    3: { x: 500, y: 550 },
     4: { x: 350, y: 250 },
     5: { x: 350, y: 400 },
     6: { x: 500, y: 400 },
@@ -22,6 +22,8 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
     8: { x: 650, y: 250 },
     9: { x: 500, y: 250 }
   };
+
+  const BUS_RADIUS = 20;  // Radius of bus circles
 
   // SVG Generator Symbol definitions
   const GeneratorSymbol = ({ withLabel, isSlack = false }: { withLabel: string, isSlack?: boolean }) => (
@@ -35,20 +37,23 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
     </g>
   );
 
-  // SVG Load Symbol definition (vertical arrow)
-  const LoadSymbol = ({ power }: { power: number }) => (
-    <g>
-      <path 
-        d="M0,0 L0,30 M-5,25 L0,30 L5,25" 
-        fill="none" 
-        stroke="blue" 
-        strokeWidth="2"
-      />
-      <text y="45" textAnchor="middle" fill="blue" fontSize="12">
-        {power} MW
-      </text>
-    </g>
-  );
+  // SVG Load Symbol definition (vertical arrow starting from bus circumference)
+  const LoadSymbol = ({ busX, busY, power }: { busX: number, busY: number, power: number }) => {
+    const arrowLength = 40;
+    return (
+      <g transform={`translate(${busX},${busY + BUS_RADIUS})`}>
+        <path 
+          d={`M0,0 L0,${arrowLength} M-5,${arrowLength-5} L0,${arrowLength} L5,${arrowLength-5}`}
+          fill="none" 
+          stroke="blue" 
+          strokeWidth="2"
+        />
+        <text y={arrowLength + 15} textAnchor="middle" fill="blue" fontSize="12">
+          {power} MW
+        </text>
+      </g>
+    );
+  };
 
   return (
     <Card>
@@ -57,14 +62,14 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
       </CardHeader>
       <CardContent>
         <div className="relative w-full h-[700px]">
-          <svg viewBox="0 0 800 600" className="w-full h-full">
+          <svg viewBox="0 0 800 650" className="w-full h-full">
             {/* Grid background */}
             <defs>
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="gray" strokeWidth="0.5" opacity="0.1"/>
               </pattern>
             </defs>
-            <rect width="800" height="600" fill="url(#grid)" />
+            <rect width="800" height="650" fill="url(#grid)" />
 
             {/* Transmission lines */}
             <g stroke="black" strokeWidth="2">
@@ -82,22 +87,22 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
 
             {/* Line labels */}
             <g className="text-xs">
-              <text x={busPositions[4].x - 20} y={(busPositions[1].y + busPositions[4].y) / 2} textAnchor="end">[1] Line 1-4</text>
-              <text x={busPositions[4].x + 60} y={busPositions[4].y + 50} textAnchor="middle" transform="rotate(-45 350,300)">[2] Line 4-5</text>
-              <text x={(busPositions[5].x + busPositions[6].x) / 2} y={busPositions[5].y + 20} textAnchor="middle">[3] Line 5-6</text>
-              <text x={busPositions[6].x + 20} y={busPositions[6].y + 30} textAnchor="start">[4] Line 3-6</text>
-              <text x={(busPositions[6].x + busPositions[7].x) / 2} y={busPositions[6].y + 20} textAnchor="middle">[5] Line 6-7</text>
-              <text x={busPositions[7].x - 60} y={busPositions[7].y - 50} textAnchor="end" transform="rotate(45 650,300)">[6] Line 7-8</text>
-              <text x={busPositions[8].x + 20} y={(busPositions[2].y + busPositions[8].y) / 2} textAnchor="start">[7] Line 8-2</text>
+              <text x={busPositions[1].x - 10} y={(busPositions[1].y + busPositions[4].y) / 2} textAnchor="end">[1] Line 1-4</text>
+              <text x={busPositions[4].x + 20} y={busPositions[4].y + 40} transform={`rotate(45 ${busPositions[4].x + 20} ${busPositions[4].y + 40})`}>[2] Line 4-5</text>
+              <text x={(busPositions[5].x + busPositions[6].x) / 2} y={busPositions[5].y - 10} textAnchor="middle">[3] Line 5-6</text>
+              <text x={busPositions[6].x + 10} y={(busPositions[6].y + busPositions[3].y) / 2} textAnchor="start">[4] Line 3-6</text>
+              <text x={(busPositions[6].x + busPositions[7].x) / 2} y={busPositions[6].y - 10} textAnchor="middle">[5] Line 6-7</text>
+              <text x={busPositions[8].x + 20} y={busPositions[8].y + 40} transform={`rotate(-45 ${busPositions[8].x + 20} ${busPositions[8].y + 40})`}>[6] Line 7-8</text>
+              <text x={busPositions[2].x + 10} y={(busPositions[2].y + busPositions[8].y) / 2} textAnchor="start">[7] Line 8-2</text>
               <text x={(busPositions[8].x + busPositions[9].x) / 2} y={busPositions[8].y - 10} textAnchor="middle">[8] Line 8-9</text>
               <text x={(busPositions[4].x + busPositions[9].x) / 2} y={busPositions[4].y - 10} textAnchor="middle">[9] Line 9-4</text>
             </g>
 
             {/* Generator connection lines */}
             <g stroke="red" strokeWidth="2">
-              <line x1={busPositions[1].x} y1={busPositions[1].y - 60} x2={busPositions[1].x} y2={busPositions[1].y} />
-              <line x1={busPositions[2].x} y1={busPositions[2].y - 60} x2={busPositions[2].x} y2={busPositions[2].y} />
-              <line x1={busPositions[3].x} y1={busPositions[3].y + 60} x2={busPositions[3].x} y2={busPositions[3].y} />
+              <line x1={busPositions[1].x} y1={busPositions[1].y - 60} x2={busPositions[1].x} y2={busPositions[1].y - BUS_RADIUS} />
+              <line x1={busPositions[2].x} y1={busPositions[2].y - 60} x2={busPositions[2].x} y2={busPositions[2].y - BUS_RADIUS} />
+              <line x1={busPositions[3].x} y1={busPositions[3].y + 60} x2={busPositions[3].x} y2={busPositions[3].y + BUS_RADIUS} />
             </g>
 
             {/* Generators */}
@@ -116,7 +121,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
             {/* Buses */}
             {Object.entries(busPositions).map(([bus, pos]) => (
               <g key={bus} transform={`translate(${pos.x},${pos.y})`}>
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
+                <circle r={BUS_RADIUS} fill="white" stroke="black" strokeWidth="2"/>
                 <text 
                   textAnchor="middle" 
                   dominantBaseline="middle" 
@@ -128,17 +133,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
             ))}
 
             {/* Loads */}
-            <g>
-              <g transform={`translate(${busPositions[5].x},${busPositions[5].y})`}>
-                <LoadSymbol power={loads.bus5.p} />
-              </g>
-              <g transform={`translate(${busPositions[7].x},${busPositions[7].y})`}>
-                <LoadSymbol power={loads.bus7.p} />
-              </g>
-              <g transform={`translate(${busPositions[9].x},${busPositions[9].y})`}>
-                <LoadSymbol power={loads.bus9.p} />
-              </g>
-            </g>
+            <LoadSymbol busX={busPositions[5].x} busY={busPositions[5].y} power={loads.bus5.p} />
+            <LoadSymbol busX={busPositions[7].x} busY={busPositions[7].y} power={loads.bus7.p} />
+            <LoadSymbol busX={busPositions[9].x} busY={busPositions[9].y} power={loads.bus9.p} />
 
             {/* Legend */}
             <g transform="translate(700,500)">
