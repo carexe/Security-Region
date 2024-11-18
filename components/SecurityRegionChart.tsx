@@ -70,10 +70,26 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
   };
 
   const getFeasibleRegionPoints = () => {
-    return data.feasibleRegion.map(point => ({
-      ...point,
-      constraint: 'Feasible Region'
-    }));
+    // Filter out duplicates based on x and y values rounded to 4 decimal places
+    const uniquePoints = data.feasibleRegion.reduce((acc: any[], point) => {
+      const roundedPoint = {
+        x: Number(point.x.toFixed(4)),
+        y: Number(point.y.toFixed(4)),
+        constraint: 'Feasible Region'
+      };
+      
+      const exists = acc.some(p => 
+        p.x === roundedPoint.x && 
+        p.y === roundedPoint.y
+      );
+      
+      if (!exists) {
+        acc.push(roundedPoint);
+      }
+      return acc;
+    }, []);
+  
+    return uniquePoints;
   };
 
   return (
@@ -114,6 +130,8 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           fillOpacity={0.3}
           stroke="none"
           name="Feasible Region"
+          type="linear"
+          isAnimationActive={false}
         />
         
         {/* Constraint lines */}
