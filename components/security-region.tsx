@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
+import LoadControl from './LoadControl';
 
 interface Coefficients {
   a: number;
@@ -43,13 +44,23 @@ export function SecurityRegion() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [currentLoads, setCurrentLoads] = useState({
+    bus5: { p: 90 },
+    bus7: { p: 100 },
+    bus9: { p: 125 }
+  });
 
   useEffect(() => {
     fetchData();
-  }, [retryCount]);
+  }, [retryCount, currentLoads]);  // Now also depends on currentLoads
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
+  };
+
+  const handleLoadChange = (newLoads: Record<string, { p: number }>) => {
+    console.log('Loads updated:', newLoads);
+    setCurrentLoads(newLoads);
   };
 
   const fetchData = async () => {
@@ -60,7 +71,14 @@ export function SecurityRegion() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       console.log('Attempting to fetch from:', apiUrl);
       
-      const response = await fetch(`${apiUrl}/api/security-region`, {
+      // Add loads as query parameters
+      const queryParams = new URLSearchParams({
+        bus5_p: currentLoads.bus5.p.toString(),
+        bus7_p: currentLoads.bus7.p.toString(),
+        bus9_p: currentLoads.bus9.p.toString()
+      });
+      
+      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -70,14 +88,7 @@ export function SecurityRegion() {
       
       const result = await response.json();
       console.log('Full API Response:', result);
-      console.log('Feasible Region Vertices:', result.feasibleRegion);
-      console.log('Received data structure:', {
-        statisticsKeys: Object.keys(result.statistics),
-        limitsKeys: Object.keys(result.limits),
-        numConstraints: result.constraints.length,
-        sampleConstraint: result.constraints[0]
-      });
-   
+      
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
       }
@@ -122,6 +133,8 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
+      <LoadControl onLoadChange={handleLoadChange} />
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <Card>
           <CardHeader>
