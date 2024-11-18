@@ -1,7 +1,15 @@
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ReferenceLine, Area, ComposedChart
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+  Area,
+  ComposedChart,
 } from 'recharts';
 
 interface Point {
@@ -57,11 +65,16 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     return points;
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, coordinate }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-2 border border-gray-200 rounded shadow">
-          <p>({payload[0].payload.x.toFixed(2)}, {payload[0].payload.y.toFixed(2)})</p>
+          <p>
+            Pointer: ({coordinate.x.toFixed(2)}, {coordinate.y.toFixed(2)})
+          </p>
+          <p>
+            Data Point: ({payload[0].payload.x.toFixed(2)}, {payload[0].payload.y.toFixed(2)})
+          </p>
         </div>
       );
     }
@@ -71,18 +84,18 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
   const getFeasibleRegionPoints = () => {
     const points: Point[] = [];
     const constraints = data.constraints;
-    
+
     // Add vertices at constraint intersections
     for (let i = 0; i < constraints.length; i++) {
       for (let j = i + 1; j < constraints.length; j++) {
         const c1 = constraints[i].coefficients;
         const c2 = constraints[j].coefficients;
-        
+
         const det = c1.a * c2.b - c2.a * c1.b;
         if (Math.abs(det) > 1e-10) {
           const x = (c1.c * c2.b - c2.c * c1.b) / det;
           const y = (c1.a * c2.c - c2.a * c1.c) / det;
-          
+
           if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
             // Check if point satisfies all constraints
             let feasible = true;
@@ -109,7 +122,7 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     // Sort points clockwise around centroid
     const centroid = {
       x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-      y: points.reduce((sum, p) => sum + p.y, 0) / points.length
+      y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
     };
 
     points.sort((a, b) => {
@@ -126,12 +139,20 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     return points;
   };
 
+  const feasibleRegion = getFeasibleRegionPoints();
+  console.log('Feasible Region Points:', feasibleRegion);
+
   return (
     <div className="h-[600px] w-full">
       <ComposedChart
         margin={{ top: 20, right: 50, bottom: 60, left: 50 }}
         width={800}
         height={600}
+        onMouseMove={(state) => {
+          if (state && state.chartX && state.chartY) {
+            console.log('Pointer Coordinates:', state.chartX, state.chartY);
+          }
+        }}
       >
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
         <XAxis
@@ -148,9 +169,13 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           label={{ value: 'Generator 3 Power Output (MW)', angle: -90, position: 'left', offset: 20 }}
           tick={{ fontSize: 12 }}
         />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend 
-          layout="vertical" 
+        <Tooltip
+          content={<CustomTooltip />}
+          cursor={{ strokeDasharray: '3 3' }}
+          isAnimationActive={false}
+        />
+        <Legend
+          layout="vertical"
           align="right"
           verticalAlign="top"
           wrapperStyle={{ paddingLeft: '20px' }}
@@ -158,14 +183,15 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
 
         {/* Shaded feasible region */}
         <Area
-          data={getFeasibleRegionPoints()}
+          data={feasibleRegion}
+          type="linear"
           dataKey="y"
           fill="#82ca9d"
           fillOpacity={0.3}
           stroke="none"
           name="Feasible Region"
         />
-        
+
         {/* Constraint lines */}
         {data.constraints.map((constraint, index) => (
           <Line
@@ -180,17 +206,17 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
             dot={false}
           />
         ))}
-        
-        <ReferenceLine 
-          x={limits.g2_max} 
-          stroke="green" 
-          label={{ value: 'G2 Max', position: 'top' }} 
+
+        <ReferenceLine
+          x={limits.g2_max}
+          stroke="green"
+          label={{ value: 'G2 Max', position: 'top' }}
           strokeDasharray="3 3"
         />
-        <ReferenceLine 
-          y={limits.g3_max} 
-          stroke="green" 
-          label={{ value: 'G3 Max', position: 'right' }} 
+        <ReferenceLine
+          y={limits.g3_max}
+          stroke="green"
+          label={{ value: 'G3 Max', position: 'right' }}
           strokeDasharray="3 3"
         />
       </ComposedChart>
