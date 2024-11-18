@@ -53,7 +53,7 @@ export function SecurityRegion() {
       setError(null);
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      console.log('Fetching from:', apiUrl); // Debug log
+      console.log('Attempting to fetch from:', apiUrl);
       
       const response = await fetch(`${apiUrl}/api/security-region`, {
         method: 'GET',
@@ -61,18 +61,25 @@ export function SecurityRegion() {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        mode: 'cors',
-        credentials: 'omit'
+        mode: 'cors'  // Changed from default to explicit cors
       });
       
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        let errorMessage;
+        try {
+          const errorData = await response.text();
+          errorMessage = `Server error (${response.status}): ${errorData}`;
+        } catch {
+          errorMessage = `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
       
       const result = await response.json();
-      console.log('Received data:', result); // Debug log
-
+      console.log('Received data:', result);
+  
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
       }
@@ -80,6 +87,7 @@ export function SecurityRegion() {
       setData(result);
     } catch (err) {
       console.error('Fetch error:', err);
+      console.error('API URL:', process.env.NEXT_PUBLIC_API_URL);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
