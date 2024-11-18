@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ReferenceLine, Area
+  Tooltip, Legend, ReferenceLine, Area, ComposedChart
 } from 'recharts';
 
 interface Point {
@@ -10,18 +10,20 @@ interface Point {
   constraint: string;
 }
 
+interface Constraint {
+  coefficients: {
+    a: number;
+    b: number;
+    c: number;
+  };
+  description: string;
+  color: string;
+  style: string;
+}
+
 interface SecurityRegionChartProps {
   data: {
-    constraints: Array<{
-      coefficients: {
-        a: number;
-        b: number;
-        c: number;
-      };
-      description: string;
-      color: string;
-      style: string;
-    }>;
+    constraints: Constraint[];
   };
   limits: {
     g2_max: number;
@@ -30,7 +32,7 @@ interface SecurityRegionChartProps {
 }
 
 const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits }) => {
-  const getConstraintPoints = (constraint: any) => {
+  const getConstraintPoints = (constraint: Constraint) => {
     const { a, b, c } = constraint.coefficients;
     const points: Point[] = [];
     const numPoints = 100;
@@ -55,34 +57,81 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     return points;
   };
 
-  // Calculate feasible region points
-  const getFeasibleRegion = () => {
-    const points: Point[] = [];
-    const numPoints = 100;
+  const getIntersectionPoint = (c1: Constraint, c2: Constraint): Point | null => {
+    const { a: a1, b: b1, c: c1val } = c1.coefficients;
+    const { a: a2, b: b2, c: c2val } = c2.coefficients;
+    
+    const det = a1 * b2 - a2 * b1;
+    if (Math.abs(det) < 1e-10) return null;
 
-    for (let x = 0; x <= limits.g2_max; x += limits.g2_max / numPoints) {
-      for (let y = 0; y <= limits.g3_max; y += limits.g3_max / numPoints) {
-        let isFeasible = true;
-        
-        for (const constraint of data.constraints) {
-          const { a, b, c } = constraint.coefficients;
-          if (a * x + b * y > c) {
-            isFeasible = false;
-            break;
-          }
-        }
+    const x = (c1val * b2 - c2val * b1) / det;
+    const y = (a1 * c2val - a2 * c1val) / det;
 
-        if (isFeasible) {
-          points.push({ x, y, constraint: 'feasible' });
+    if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
+      return { x, y, constraint: 'intersection' };
+    }
+    return null;
+  };
+
+  const isPointFeasible = (point: Point): boolean => {
+    return data.constraints.every(constraint => {
+      const { a, b, c } = constraint.coefficients;
+      return a * point.x + b * point.y <= c + 1e-10;
+    });
+  };
+
+  const getFeasibleRegionVertices = () => {
+    const vertices: Point[] = [];
+    
+    // Add corners if they're feasible
+    const corners: Point[] = [
+      { x: 0, y: 0, constraint: 'vertex' },
+      { x: limits.g2_max, y: 0, constraint: 'vertex' },
+      { x: 0, y: limits.g3_max, constraint: 'vertex' },
+      { x: limits.g2_max, y: limits.g3_max, constraint: 'vertex' }
+    ];
+
+    corners.forEach(corner => {
+      if (isPointFeasible(corner)) {
+        vertices.push(corner);
+      }
+    });
+
+    // Add constraint intersections
+    for (let i = 0; i < data.constraints.length; i++) {
+      for (let j = i + 1; j < data.constraints.length; j++) {
+        const intersection = getIntersectionPoint(data.constraints[i], data.constraints[j]);
+        if (intersection && isPointFeasible(intersection)) {
+          vertices.push(intersection);
         }
       }
     }
-    return points;
+
+    if (vertices.length === 0) return [];
+
+    // Sort vertices counterclockwise
+    const center = {
+      x: vertices.reduce((sum, p) => sum + p.x, 0) / vertices.length,
+      y: vertices.reduce((sum, p) => sum + p.y, 0) / vertices.length
+    };
+
+    vertices.sort((a, b) => {
+      const angleA = Math.atan2(a.y - center.y, a.x - center.x);
+      const angleB = Math.atan2(b.y - center.y, b.x - center.x);
+      return angleA - angleB;
+    });
+
+    // Close the polygon
+    if (vertices.length > 0) {
+      vertices.push({ ...vertices[0] });
+    }
+
+    return vertices;
   };
 
   return (
     <div className="h-[600px] w-full">
-      <LineChart
+      <ComposedChart
         margin={{ top: 20, right: 50, bottom: 60, left: 50 }}
         width={800}
         height={600}
@@ -114,12 +163,12 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
 
         {/* Shaded feasible region */}
         <Area
-          type="monotone"
-          data={getFeasibleRegion()}
+          data={getFeasibleRegionVertices()}
           dataKey="y"
           fill="#82ca9d"
           fillOpacity={0.2}
           stroke="none"
+          name="Feasible Region"
         />
         
         {/* Constraint lines */}
@@ -149,7 +198,7 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           label={{ value: 'G3 Max', position: 'right' }} 
           strokeDasharray="3 3"
         />
-      </LineChart>
+      </ComposedChart>
     </div>
   );
 };
