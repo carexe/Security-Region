@@ -7,6 +7,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
 import LoadControl from './LoadControl';
 
+interface LoadData {
+  bus5: { p: number };
+  bus7: { p: number };
+  bus9: { p: number };
+}
+
 interface Coefficients {
   a: number;
   b: number;
@@ -44,7 +50,7 @@ export function SecurityRegion() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [currentLoads, setCurrentLoads] = useState({
+  const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
     bus9: { p: 125 }
@@ -60,7 +66,7 @@ export function SecurityRegion() {
     fetchData();
   };
 
-  const handleLoadChange = (newLoads: Record<string, { p: number }>) => {
+  const handleLoadChange = (newLoads: LoadData) => {
     console.log('Loads updated:', newLoads);
     setCurrentLoads(newLoads);
   };

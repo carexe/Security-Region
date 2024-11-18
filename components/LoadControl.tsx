@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 
+interface LoadData {
+  bus5: { p: number };
+  bus7: { p: number };
+  bus9: { p: number };
+}
+
 interface LoadControlProps {
-  onLoadChange: (loads: Record<string, { p: number }>) => void;
+  onLoadChange: (loads: LoadData) => void;
   onCalculate: () => void;
 }
 
 const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) => {
-  // Initial load values from the IEEE 9 bus system
-  const [loads, setLoads] = useState({
+  const [loads, setLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
     bus9: { p: 125 }
   });
 
-  const handleSliderChange = (bus: string, value: number) => {
+  const handleSliderChange = (bus: 'bus5' | 'bus7' | 'bus9', value: number) => {
     const newLoads = {
       ...loads,
       [bus]: { p: value }
@@ -22,7 +27,7 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) 
     onLoadChange(newLoads);
   };
 
-  const handleInputChange = (bus: string, value: string) => {
+  const handleInputChange = (bus: 'bus5' | 'bus7' | 'bus9', value: string) => {
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 200) {
       const newLoads = {
@@ -46,7 +51,7 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) 
         </button>
       </div>
       <div className="space-y-6">
-        {Object.entries(loads).map(([bus, load]) => (
+        {(['bus5', 'bus7', 'bus9'] as const).map((bus) => (
           <div key={bus} className="space-y-2">
             <h3 className="font-semibold">Bus {bus.slice(3)} Load</h3>
             <div className="flex items-center space-x-4">
@@ -54,13 +59,13 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) 
                 type="range"
                 min="0"
                 max="200"
-                value={load.p}
+                value={loads[bus].p}
                 onChange={(e) => handleSliderChange(bus, Number(e.target.value))}
                 className="flex-grow"
               />
               <input
                 type="number"
-                value={load.p}
+                value={loads[bus].p}
                 min="0"
                 max="200"
                 onChange={(e) => handleInputChange(bus, e.target.value)}
