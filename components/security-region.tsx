@@ -48,16 +48,30 @@ export function SecurityRegion() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/security-region');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      const response = await fetch(`${apiUrl}/api/security-region`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Changed to 'include' to match backend's supports_credentials: True
+        mode: 'cors'  // Explicitly set CORS mode
+      });
+      
+      console.log('Fetching from:', `${apiUrl}/api/security-region`); // Debug log
+      
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       const result = await response.json();
       setData(result);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch security region data');
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Fetch error:', err); // Debug log
+      console.error('API URL:', process.env.NEXT_PUBLIC_API_URL); // Debug log
+      setError('Failed to fetch security region data: ' + errorMessage);
     } finally {
       setLoading(false);
     }
