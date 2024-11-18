@@ -70,7 +70,6 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
   };
 
   const getFeasibleRegionPoints = () => {
-    // Filter out duplicates based on x and y values rounded to 4 decimal places
     const uniquePoints = data.feasibleRegion.reduce((acc: any[], point) => {
       const roundedPoint = {
         x: Number(point.x.toFixed(4)),
@@ -89,6 +88,7 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
       return acc;
     }, []);
   
+    console.log('Unique Feasible Region Points:', uniquePoints);
     return uniquePoints;
   };
 
