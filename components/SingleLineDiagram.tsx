@@ -13,13 +13,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
   // Bus positions with increased spacing
   const busPositions = {
     1: { x: 200, y: 250 },
-    2: { x: 650, y: 250 },
+    2: { x: 800, y: 250 },
     3: { x: 500, y: 550 },
     4: { x: 350, y: 250 },
     5: { x: 350, y: 400 },
     6: { x: 500, y: 400 },
     7: { x: 650, y: 400 },
-    8: { x: 800, y: 250 },
+    8: { x: 650, y: 250 },
     9: { x: 500, y: 250 }
   };
 
