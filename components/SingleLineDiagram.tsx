@@ -15,14 +15,20 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
     <g>
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
       <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
+      {/* Vertical line connecting generator to bus */}
+      <line x1="0" y1="15" x2="0" y2="30" stroke="red" strokeWidth="2"/>
     </g>
   );
 
-  // SVG Load Symbol definition
+  // SVG Load Symbol definition (vertical arrow)
   const LoadSymbol = ({ power }: { power: number }) => (
     <g>
-      <path d="M-10,0 L10,0 M0,0 L0,15 L-10,30 M0,15 L10,30" 
-            fill="none" stroke="blue" strokeWidth="2"/>
+      <path 
+        d="M0,0 L0,30 M-5,25 L0,30 L5,25" 
+        fill="none" 
+        stroke="blue" 
+        strokeWidth="2"
+      />
       <text y="45" textAnchor="middle" fill="blue" fontSize="12">
         {power} MW
       </text>
@@ -80,6 +86,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
                 <g transform="translate(-30,-30)">
                   <GeneratorSymbol />
                   <text x="0" y="-25" textAnchor="middle" fill="red">G1</text>
+                  <text x="0" y="-40" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
                 </g>
               </g>
 
@@ -164,8 +171,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
               {/* Load symbol */}
               <g transform="translate(0,-10)">
                 <g transform="scale(0.8)">
-                  <path d="M-10,0 L10,0 M0,0 L0,15 L-10,30 M0,15 L10,30" 
-                        fill="none" stroke="blue" strokeWidth="2"/>
+                  <path 
+                    d="M0,0 L0,30 M-5,25 L0,30 L5,25" 
+                    fill="none" 
+                    stroke="blue" 
+                    strokeWidth="2"
+                  />
                 </g>
                 <text x="30" y="15" fontSize="12">Load</text>
               </g>
