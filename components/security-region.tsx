@@ -63,14 +63,12 @@ export function SecurityRegion() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/health`, {
-        // Add these headers for CORS
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
       
-      // Check both the response status and ok property
       if (response.ok) {
         setServerStarting(false);
         return true;
@@ -79,7 +77,6 @@ export function SecurityRegion() {
         return false;
       }
     } catch (error) {
-      // CORS errors and network errors will land here
       console.log('Server check error:', error);
       setServerStarting(true);
       return false;
@@ -89,17 +86,15 @@ export function SecurityRegion() {
   // Initial fetch only once when component mounts
   useEffect(() => {
     const initializeData = async () => {
-      // First check if server is ready
       const isServerReady = await checkServerStatus();
       if (!isServerReady) {
-        // If server not ready, start polling
         const pollInterval = setInterval(async () => {
           const ready = await checkServerStatus();
           if (ready) {
             clearInterval(pollInterval);
             fetchData();
           }
-        }, 2000); // Poll every 2 seconds
+        }, 2000);
         return () => clearInterval(pollInterval);
       }
       fetchData();
@@ -119,7 +114,6 @@ export function SecurityRegion() {
   };
 
   const handleCalculate = async () => {
-    console.log('Calculating with loads:', currentLoads);
     const isServerReady = await checkServerStatus();
     if (!isServerReady) {
       setServerStarting(true);
@@ -138,14 +132,12 @@ export function SecurityRegion() {
 
   const fetchData = async () => {
     try {
-      // Check server status before making the main request
       const isServerReady = await checkServerStatus();
       if (!isServerReady) {
         setServerStarting(true);
-        // Don't proceed with the fetch if server isn't ready
         return;
       }
-  
+
       setLoading(true);
       setError(null);
       
@@ -181,7 +173,6 @@ export function SecurityRegion() {
       setServerStarting(false);
     } catch (err) {
       console.error('Fetch error:', err);
-      // If it's a CORS error or network error, check if server is starting
       const isServerStarting = await checkServerStatus();
       if (!isServerStarting) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -254,8 +245,61 @@ export function SecurityRegion() {
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        {/* Rest of your component remains the same */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Security Region Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-sm">
+                <span className="font-semibold">Feasible Region:</span>
+                {' '}{data.statistics.feasiblePercentage.toFixed(1)}%
+              </p>
+              <p className="text-sm">
+                <span className="font-semibold">Binding Constraints:</span>
+                {' '}{data.statistics.bindingConstraints}
+              </p>
+              <p className="text-sm">
+                <span className="font-semibold">Total Constraints:</span>
+                {' '}{data.statistics.totalConstraints}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Constraints</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {data.constraints.map((constraint, index) => (
+                <div 
+                  key={index}
+                  className="p-2 rounded border"
+                  style={{ borderColor: constraint.color }}
+                >
+                  <p className="text-sm font-medium">{formatConstraintDescription(constraint.description)}</p>
+                  <p className="text-xs text-gray-600">
+                    {constraint.coefficients.a.toFixed(3)}·P_g2 + 
+                    {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
+                    {constraint.coefficients.c.toFixed(3)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security Region Visualization</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SecurityRegionChart data={data} limits={data.limits} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
