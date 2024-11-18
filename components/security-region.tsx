@@ -62,14 +62,25 @@ export function SecurityRegion() {
   const checkServerStatus = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/health`);
+      const response = await fetch(`${apiUrl}/health`, {
+        // Add these headers for CORS
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Check both the response status and ok property
       if (response.ok) {
         setServerStarting(false);
         return true;
+      } else {
+        setServerStarting(true);
+        return false;
       }
-      return false;
     } catch (error) {
-      console.log('Server still starting...');
+      // CORS errors and network errors will land here
+      console.log('Server check error:', error);
       setServerStarting(true);
       return false;
     }
@@ -127,13 +138,20 @@ export function SecurityRegion() {
 
   const fetchData = async () => {
     try {
+      // Check server status before making the main request
+      const isServerReady = await checkServerStatus();
+      if (!isServerReady) {
+        setServerStarting(true);
+        // Don't proceed with the fetch if server isn't ready
+        return;
+      }
+  
       setLoading(true);
       setError(null);
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       console.log('Attempting to fetch from:', apiUrl);
       
-      // Add loads as query parameters
       const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
@@ -148,6 +166,10 @@ export function SecurityRegion() {
         }
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       console.log('Full API Response:', result);
       
@@ -159,7 +181,7 @@ export function SecurityRegion() {
       setServerStarting(false);
     } catch (err) {
       console.error('Fetch error:', err);
-      // Check if it's a server starting issue
+      // If it's a CORS error or network error, check if server is starting
       const isServerStarting = await checkServerStatus();
       if (!isServerStarting) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -176,7 +198,7 @@ export function SecurityRegion() {
         <div className="text-center space-y-2">
           <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
           <p className="text-sm text-gray-600">
-            This may take up to 50 seconds as we wake up the free-tier server...
+            This may take up to 30 seconds as we wake up the free-tier server...
           </p>
         </div>
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
