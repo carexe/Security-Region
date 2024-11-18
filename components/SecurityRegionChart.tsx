@@ -88,6 +88,13 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
       return acc;
     }, []);
   
+    // If last point isn't same as first, add first point again
+    if (uniquePoints.length > 0 && 
+        (uniquePoints[0].x !== uniquePoints[uniquePoints.length - 1].x ||
+         uniquePoints[0].y !== uniquePoints[uniquePoints.length - 1].y)) {
+      uniquePoints.push({...uniquePoints[0]});
+    }
+  
     console.log('Unique Feasible Region Points:', uniquePoints);
     return uniquePoints;
   };
