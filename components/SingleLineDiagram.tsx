@@ -88,13 +88,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
 
             {/* Line labels */}
             <g className="text-xs">
-              <text x={busPositions[1].x - 10} y={(busPositions[1].y + busPositions[4].y) / 2} textAnchor="end">[1] Line 1-4</text>
-              <text x={busPositions[4].x + 20} y={busPositions[4].y + 40} transform={`rotate(45 ${busPositions[4].x + 20} ${busPositions[4].y + 40})`}>[2] Line 4-5</text>
+              <text x={(busPositions[1].x + busPositions[4].x) / 2} y={busPositions[1].y - 10} textAnchor="middle">[1] Line 1-4</text>
+              <text x={busPositions[4].x + 10} y={(busPositions[4].y + busPositions[5].y) / 2} textAnchor="start">[2] Line 4-5</text>
               <text x={(busPositions[5].x + busPositions[6].x) / 2} y={busPositions[5].y - 10} textAnchor="middle">[3] Line 5-6</text>
               <text x={busPositions[6].x + 10} y={(busPositions[6].y + busPositions[3].y) / 2} textAnchor="start">[4] Line 3-6</text>
               <text x={(busPositions[6].x + busPositions[7].x) / 2} y={busPositions[6].y - 10} textAnchor="middle">[5] Line 6-7</text>
-              <text x={busPositions[8].x + 20} y={busPositions[8].y + 40} transform={`rotate(-45 ${busPositions[8].x + 20} ${busPositions[8].y + 40})`}>[6] Line 7-8</text>
-              <text x={busPositions[2].x + 10} y={(busPositions[2].y + busPositions[8].y) / 2} textAnchor="start">[7] Line 8-2</text>
+              <text x={busPositions[7].x + 10} y={(busPositions[7].y + busPositions[8].y) / 2} textAnchor="start">[6] Line 7-8</text>
+              <text x={(busPositions[8].x + busPositions[2].x) / 2} y={busPositions[8].y - 10} textAnchor="middle">[7] Line 8-2</text>
               <text x={(busPositions[8].x + busPositions[9].x) / 2} y={busPositions[8].y - 10} textAnchor="middle">[8] Line 8-9</text>
               <text x={(busPositions[4].x + busPositions[9].x) / 2} y={busPositions[4].y - 10} textAnchor="middle">[9] Line 9-4</text>
             </g>
