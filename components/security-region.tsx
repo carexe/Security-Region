@@ -138,10 +138,6 @@ export function SecurityRegion() {
                 <span className="font-semibold">Total Constraints:</span>
                 {' '}{data.statistics.totalConstraints}
               </p>
-              <p className="text-sm">
-                <span className="font-semibold">Feasible Area:</span>
-                {' '}{data.statistics.feasibleArea.toFixed(1)} MW²
-              </p>
             </div>
           </CardContent>
         </Card>
