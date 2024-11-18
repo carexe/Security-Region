@@ -11,12 +11,17 @@ interface SingleLineDiagramProps {
 
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
   // SVG Generator Symbol definitions
-  const GeneratorSymbol = () => (
+  const GeneratorSymbol = ({ withLabel, isSlack = false }: { withLabel: string, isSlack?: boolean }) => (
     <g>
+      {/* Generator circle and X */}
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
       <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
-      {/* Vertical line connecting generator to bus */}
-      <line x1="0" y1="15" x2="0" y2="30" stroke="red" strokeWidth="2"/>
+      
+      {/* Label */}
+      <text y="-25" textAnchor="middle" fill="red" fontSize="14">{withLabel}</text>
+      {isSlack && (
+        <text y="-40" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
+      )}
     </g>
   );
 
@@ -51,7 +56,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
             </defs>
             <rect width="800" height="600" fill="url(#grid)" />
 
-            {/* Transmission lines with labels */}
+            {/* Transmission lines */}
             <g stroke="black" strokeWidth="2">
               <path d="M 200,150 L 200,250" />
               <path d="M 200,250 L 300,350" />
@@ -77,82 +82,70 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
               <text x="300" y="240" textAnchor="middle">[9] Line 9-4</text>
             </g>
 
+            {/* Generator connection lines */}
+            <g stroke="red" strokeWidth="2">
+              <line x1="200" y1="90" x2="200" y2="130" /> {/* G1 connection */}
+              <line x1="600" y1="90" x2="600" y2="130" /> {/* G2 connection */}
+              <line x1="400" y1="510" x2="400" y2="470" /> {/* G3 connection */}
+            </g>
+
+            {/* Load connection lines */}
+            <g stroke="blue" strokeWidth="2">
+              <line x1="300" y1="370" x2="300" y2="390" /> {/* Load 5 connection */}
+              <line x1="500" y1="370" x2="500" y2="390" /> {/* Load 7 connection */}
+              <line x1="400" y1="270" x2="400" y2="290" /> {/* Load 9 connection */}
+            </g>
+
+            {/* Generators */}
+            <g>
+              <g transform="translate(200,70)">
+                <GeneratorSymbol withLabel="G1" isSlack={true} />
+              </g>
+              <g transform="translate(600,70)">
+                <GeneratorSymbol withLabel="G2" />
+              </g>
+              <g transform="translate(400,530)">
+                <GeneratorSymbol withLabel="G3" />
+              </g>
+            </g>
+
             {/* Buses */}
             <g>
-              {/* Bus 1 */}
-              <g transform="translate(200,150)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">1</text>
-                <g transform="translate(-30,-30)">
-                  <GeneratorSymbol />
-                  <text x="0" y="-25" textAnchor="middle" fill="red">G1</text>
-                  <text x="0" y="-40" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
+              {/* Bus circles and numbers */}
+              {[
+                { x: 200, y: 150, n: "1" },
+                { x: 600, y: 150, n: "2" },
+                { x: 400, y: 450, n: "3" },
+                { x: 200, y: 250, n: "4" },
+                { x: 300, y: 350, n: "5" },
+                { x: 400, y: 350, n: "6" },
+                { x: 500, y: 350, n: "7" },
+                { x: 600, y: 250, n: "8" },
+                { x: 400, y: 250, n: "9" }
+              ].map(bus => (
+                <g key={bus.n} transform={`translate(${bus.x},${bus.y})`}>
+                  <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
+                  <text 
+                    textAnchor="middle" 
+                    dominantBaseline="middle" 
+                    fontSize="16"
+                  >
+                    {bus.n}
+                  </text>
                 </g>
-              </g>
+              ))}
+            </g>
 
-              {/* Bus 2 */}
-              <g transform="translate(600,150)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">2</text>
-                <g transform="translate(-30,-30)">
-                  <GeneratorSymbol />
-                  <text x="0" y="-25" textAnchor="middle" fill="red">G2</text>
-                </g>
+            {/* Loads */}
+            <g>
+              <g transform="translate(300,390)">
+                <LoadSymbol power={loads.bus5.p} />
               </g>
-
-              {/* Bus 3 */}
-              <g transform="translate(400,450)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">3</text>
-                <g transform="translate(-30,-30)">
-                  <GeneratorSymbol />
-                  <text x="0" y="-25" textAnchor="middle" fill="red">G3</text>
-                </g>
+              <g transform="translate(500,390)">
+                <LoadSymbol power={loads.bus7.p} />
               </g>
-
-              {/* Bus 4 */}
-              <g transform="translate(200,250)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">4</text>
-              </g>
-
-              {/* Bus 5 with load */}
-              <g transform="translate(300,350)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">5</text>
-                <g transform="translate(0,30)">
-                  <LoadSymbol power={loads.bus5.p} />
-                </g>
-              </g>
-
-              {/* Bus 6 */}
-              <g transform="translate(400,350)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">6</text>
-              </g>
-
-              {/* Bus 7 with load */}
-              <g transform="translate(500,350)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">7</text>
-                <g transform="translate(0,30)">
-                  <LoadSymbol power={loads.bus7.p} />
-                </g>
-              </g>
-
-              {/* Bus 8 */}
-              <g transform="translate(600,250)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">8</text>
-              </g>
-
-              {/* Bus 9 with load */}
-              <g transform="translate(400,250)">
-                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="16">9</text>
-                <g transform="translate(0,30)">
-                  <LoadSymbol power={loads.bus9.p} />
-                </g>
+              <g transform="translate(400,290)">
+                <LoadSymbol power={loads.bus9.p} />
               </g>
             </g>
 
@@ -163,7 +156,8 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
               {/* Generator symbol */}
               <g transform="translate(0,-50)">
                 <g transform="scale(0.8)">
-                  <GeneratorSymbol />
+                  <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
+                  <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
                 </g>
                 <text x="30" y="5" fontSize="12">Generator</text>
               </g>
