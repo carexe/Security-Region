@@ -57,76 +57,73 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     return points;
   };
 
-  const getIntersectionPoint = (c1: Constraint, c2: Constraint): Point | null => {
-    const { a: a1, b: b1, c: c1val } = c1.coefficients;
-    const { a: a2, b: b2, c: c2val } = c2.coefficients;
-    
-    const det = a1 * b2 - a2 * b1;
-    if (Math.abs(det) < 1e-10) return null;
-
-    const x = (c1val * b2 - c2val * b1) / det;
-    const y = (a1 * c2val - a2 * c1val) / det;
-
-    if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
-      return { x, y, constraint: 'intersection' };
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 border border-gray-200 rounded shadow">
+          <p>({payload[0].payload.x.toFixed(2)}, {payload[0].payload.y.toFixed(2)})</p>
+        </div>
+      );
     }
     return null;
   };
 
-  const isPointFeasible = (point: Point): boolean => {
-    return data.constraints.every(constraint => {
-      const { a, b, c } = constraint.coefficients;
-      return a * point.x + b * point.y <= c + 1e-10;
-    });
-  };
-
-  const getFeasibleRegionVertices = () => {
-    const vertices: Point[] = [];
+  const getFeasibleRegionPoints = () => {
+    const points: Point[] = [];
+    const constraints = data.constraints;
     
-    // Add corners if they're feasible
-    const corners: Point[] = [
-      { x: 0, y: 0, constraint: 'vertex' },
-      { x: limits.g2_max, y: 0, constraint: 'vertex' },
-      { x: 0, y: limits.g3_max, constraint: 'vertex' },
-      { x: limits.g2_max, y: limits.g3_max, constraint: 'vertex' }
-    ];
-
-    corners.forEach(corner => {
-      if (isPointFeasible(corner)) {
-        vertices.push(corner);
-      }
-    });
-
-    // Add constraint intersections
-    for (let i = 0; i < data.constraints.length; i++) {
-      for (let j = i + 1; j < data.constraints.length; j++) {
-        const intersection = getIntersectionPoint(data.constraints[i], data.constraints[j]);
-        if (intersection && isPointFeasible(intersection)) {
-          vertices.push(intersection);
+    // Add vertices at constraint intersections
+    for (let i = 0; i < constraints.length; i++) {
+      for (let j = i + 1; j < constraints.length; j++) {
+        const c1 = constraints[i].coefficients;
+        const c2 = constraints[j].coefficients;
+        
+        const det = c1.a * c2.b - c2.a * c1.b;
+        if (Math.abs(det) > 1e-10) {
+          const x = (c1.c * c2.b - c2.c * c1.b) / det;
+          const y = (c1.a * c2.c - c2.a * c1.c) / det;
+          
+          if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
+            // Check if point satisfies all constraints
+            let feasible = true;
+            for (const c of constraints) {
+              if (c.coefficients.a * x + c.coefficients.b * y > c.coefficients.c + 1e-10) {
+                feasible = false;
+                break;
+              }
+            }
+            if (feasible) {
+              points.push({ x, y, constraint: 'Feasible Region' });
+            }
+          }
         }
       }
     }
 
-    if (vertices.length === 0) return [];
+    // Add boundary points
+    points.push({ x: 0, y: 0, constraint: 'Feasible Region' });
+    points.push({ x: limits.g2_max, y: 0, constraint: 'Feasible Region' });
+    points.push({ x: 0, y: limits.g3_max, constraint: 'Feasible Region' });
+    points.push({ x: limits.g2_max, y: limits.g3_max, constraint: 'Feasible Region' });
 
-    // Sort vertices counterclockwise
-    const center = {
-      x: vertices.reduce((sum, p) => sum + p.x, 0) / vertices.length,
-      y: vertices.reduce((sum, p) => sum + p.y, 0) / vertices.length
+    // Sort points clockwise around centroid
+    const centroid = {
+      x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+      y: points.reduce((sum, p) => sum + p.y, 0) / points.length
     };
 
-    vertices.sort((a, b) => {
-      const angleA = Math.atan2(a.y - center.y, a.x - center.x);
-      const angleB = Math.atan2(b.y - center.y, b.x - center.x);
+    points.sort((a, b) => {
+      const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
+      const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
       return angleA - angleB;
     });
 
     // Close the polygon
-    if (vertices.length > 0) {
-      vertices.push({ ...vertices[0] });
+    if (points.length > 0) {
+      points.push({ ...points[0] });
     }
 
-    return vertices;
+    return points;
   };
 
   return (
@@ -151,9 +148,7 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           label={{ value: 'Generator 3 Power Output (MW)', angle: -90, position: 'left', offset: 20 }}
           tick={{ fontSize: 12 }}
         />
-        <Tooltip 
-          formatter={(value: number) => `${value.toFixed(2)} MW`}
-        />
+        <Tooltip content={<CustomTooltip />} />
         <Legend 
           layout="vertical" 
           align="right"
@@ -163,10 +158,10 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
 
         {/* Shaded feasible region */}
         <Area
-          data={getFeasibleRegionVertices()}
+          data={getFeasibleRegionPoints()}
           dataKey="y"
           fill="#82ca9d"
-          fillOpacity={0.2}
+          fillOpacity={0.3}
           stroke="none"
           name="Feasible Region"
         />
