@@ -60,24 +60,16 @@ export function SecurityRegion() {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        },
-        mode: 'cors',
-        credentials: 'omit'
+        }
       });
       
-      if (!response.ok) {
-        let errorMessage;
-        try {
-          const errorData = await response.text();
-          errorMessage = `Server error (${response.status}): ${errorData}`;
-        } catch {
-          errorMessage = `Server error (${response.status})`;
-        }
-        throw new Error(errorMessage);
-      }
-      
       const result = await response.json();
-      console.log('Received data:', result);
+      console.log('Received data structure:', {
+        statisticsKeys: Object.keys(result.statistics),
+        limitsKeys: Object.keys(result.limits),
+        numConstraints: result.constraints.length,
+        sampleConstraint: result.constraints[0]
+      });
   
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
@@ -86,7 +78,6 @@ export function SecurityRegion() {
       setData(result);
     } catch (err) {
       console.error('Fetch error:', err);
-      console.error('API URL:', process.env.NEXT_PUBLIC_API_URL);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
