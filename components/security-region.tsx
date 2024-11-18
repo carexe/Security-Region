@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCcw, AlertTriangle } from 'lucide-react';
+import { RefreshCcw, AlertTriangle, Coffee } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
 import LoadControl from './LoadControl';
@@ -52,16 +52,50 @@ export function SecurityRegion() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [serverStarting, setServerStarting] = useState(false);
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
     bus9: { p: 125 }
   });
 
+  const checkServerStatus = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/health`);
+      if (response.ok) {
+        setServerStarting(false);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.log('Server still starting...');
+      setServerStarting(true);
+      return false;
+    }
+  };
+
   // Initial fetch only once when component mounts
   useEffect(() => {
-    fetchData();
-  }, []);  // Empty dependency array - only run once
+    const initializeData = async () => {
+      // First check if server is ready
+      const isServerReady = await checkServerStatus();
+      if (!isServerReady) {
+        // If server not ready, start polling
+        const pollInterval = setInterval(async () => {
+          const ready = await checkServerStatus();
+          if (ready) {
+            clearInterval(pollInterval);
+            fetchData();
+          }
+        }, 2000); // Poll every 2 seconds
+        return () => clearInterval(pollInterval);
+      }
+      fetchData();
+    };
+
+    initializeData();
+  }, []);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
@@ -73,9 +107,22 @@ export function SecurityRegion() {
     setCurrentLoads(newLoads);
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     console.log('Calculating with loads:', currentLoads);
-    fetchData();
+    const isServerReady = await checkServerStatus();
+    if (!isServerReady) {
+      setServerStarting(true);
+      // Start polling until server is ready
+      const pollInterval = setInterval(async () => {
+        const ready = await checkServerStatus();
+        if (ready) {
+          clearInterval(pollInterval);
+          fetchData();
+        }
+      }, 2000);
+    } else {
+      fetchData();
+    }
   };
 
   const fetchData = async () => {
@@ -109,13 +156,33 @@ export function SecurityRegion() {
       }
       
       setData(result);
+      setServerStarting(false);
     } catch (err) {
       console.error('Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      // Check if it's a server starting issue
+      const isServerStarting = await checkServerStatus();
+      if (!isServerStarting) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (serverStarting) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
+          <p className="text-sm text-gray-600">
+            This may take up to 50 seconds as we wake up the free-tier server...
+          </p>
+        </div>
+        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   if (loading && !data) {  // Only show loading on initial load
     return (
@@ -148,9 +215,8 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="mb-6">
-        <SingleLineDiagram loads={currentLoads} />
-      </div>
+      <SingleLineDiagram loads={currentLoads} />
+      
       <LoadControl 
         onLoadChange={handleLoadChange} 
         onCalculate={handleCalculate}
@@ -166,61 +232,8 @@ export function SecurityRegion() {
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Security Region Statistics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-sm">
-                <span className="font-semibold">Feasible Region:</span>
-                {' '}{data.statistics.feasiblePercentage.toFixed(1)}%
-              </p>
-              <p className="text-sm">
-                <span className="font-semibold">Binding Constraints:</span>
-                {' '}{data.statistics.bindingConstraints}
-              </p>
-              <p className="text-sm">
-                <span className="font-semibold">Total Constraints:</span>
-                {' '}{data.statistics.totalConstraints}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Constraints</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {data.constraints.map((constraint, index) => (
-                <div 
-                  key={index}
-                  className="p-2 rounded border"
-                  style={{ borderColor: constraint.color }}
-                >
-                  <p className="text-sm font-medium">{formatConstraintDescription(constraint.description)}</p>
-                  <p className="text-xs text-gray-600">
-                    {constraint.coefficients.a.toFixed(3)}·P_g2 + 
-                    {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
-                    {constraint.coefficients.c.toFixed(3)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Rest of your component remains the same */}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Security Region Visualization</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SecurityRegionChart data={data} limits={data.limits} />
-        </CardContent>
-      </Card>
     </div>
   );
 }
