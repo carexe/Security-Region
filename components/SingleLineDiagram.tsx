@@ -10,14 +10,24 @@ interface SingleLineDiagramProps {
 }
 
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
+  // Bus positions with increased spacing
+  const busPositions = {
+    1: { x: 350, y: 100 },
+    2: { x: 650, y: 100 },
+    3: { x: 500, y: 500 },
+    4: { x: 350, y: 250 },
+    5: { x: 350, y: 400 },
+    6: { x: 500, y: 400 },
+    7: { x: 650, y: 400 },
+    8: { x: 650, y: 250 },
+    9: { x: 500, y: 250 }
+  };
+
   // SVG Generator Symbol definitions
   const GeneratorSymbol = ({ withLabel, isSlack = false }: { withLabel: string, isSlack?: boolean }) => (
     <g>
-      {/* Generator circle and X */}
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
       <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
-      
-      {/* Label */}
       <text y="-25" textAnchor="middle" fill="red" fontSize="14">{withLabel}</text>
       {isSlack && (
         <text y="-40" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
@@ -46,7 +56,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
         <CardTitle>IEEE 9-Bus System Single Line Diagram</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="relative w-full h-[600px]">
+        <div className="relative w-full h-[700px]">
           <svg viewBox="0 0 800 600" className="w-full h-full">
             {/* Grid background */}
             <defs>
@@ -58,102 +68,82 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
 
             {/* Transmission lines */}
             <g stroke="black" strokeWidth="2">
-              <path d="M 200,150 L 200,250" />
-              <path d="M 200,250 L 300,350" />
-              <path d="M 300,350 L 400,350" />
-              <path d="M 400,450 L 400,350" />
-              <path d="M 400,350 L 500,350" />
-              <path d="M 500,350 L 600,250" />
-              <path d="M 600,250 L 600,150" />
-              <path d="M 600,250 L 400,250" />
-              <path d="M 400,250 L 200,250" />
+              {/* Vertical and horizontal lines */}
+              <path d={`M ${busPositions[1].x},${busPositions[1].y} L ${busPositions[4].x},${busPositions[4].y}`} />
+              <path d={`M ${busPositions[4].x},${busPositions[4].y} L ${busPositions[5].x},${busPositions[5].y}`} />
+              <path d={`M ${busPositions[5].x},${busPositions[5].y} L ${busPositions[6].x},${busPositions[6].y}`} />
+              <path d={`M ${busPositions[3].x},${busPositions[3].y} L ${busPositions[6].x},${busPositions[6].y}`} />
+              <path d={`M ${busPositions[6].x},${busPositions[6].y} L ${busPositions[7].x},${busPositions[7].y}`} />
+              <path d={`M ${busPositions[7].x},${busPositions[7].y} L ${busPositions[8].x},${busPositions[8].y}`} />
+              <path d={`M ${busPositions[8].x},${busPositions[8].y} L ${busPositions[2].x},${busPositions[2].y}`} />
+              <path d={`M ${busPositions[8].x},${busPositions[8].y} L ${busPositions[9].x},${busPositions[9].y}`} />
+              <path d={`M ${busPositions[9].x},${busPositions[9].y} L ${busPositions[4].x},${busPositions[4].y}`} />
             </g>
 
             {/* Line labels */}
             <g className="text-xs">
-              <text x="180" y="200" textAnchor="end">[1] Line 1-4</text>
-              <text x="230" y="320" textAnchor="start" transform="rotate(-45 230,320)">[2] Line 4-5</text>
-              <text x="350" y="370" textAnchor="middle">[3] Line 5-6</text>
-              <text x="420" y="420" textAnchor="start">[4] Line 3-6</text>
-              <text x="450" y="370" textAnchor="middle">[5] Line 6-7</text>
-              <text x="570" y="320" textAnchor="end" transform="rotate(45 570,320)">[6] Line 7-8</text>
-              <text x="620" y="200" textAnchor="start">[7] Line 8-2</text>
-              <text x="500" y="240" textAnchor="middle">[8] Line 8-9</text>
-              <text x="300" y="240" textAnchor="middle">[9] Line 9-4</text>
+              <text x={busPositions[4].x - 20} y={(busPositions[1].y + busPositions[4].y) / 2} textAnchor="end">[1] Line 1-4</text>
+              <text x={busPositions[4].x + 60} y={busPositions[4].y + 50} textAnchor="middle" transform="rotate(-45 350,300)">[2] Line 4-5</text>
+              <text x={(busPositions[5].x + busPositions[6].x) / 2} y={busPositions[5].y + 20} textAnchor="middle">[3] Line 5-6</text>
+              <text x={busPositions[6].x + 20} y={busPositions[6].y + 30} textAnchor="start">[4] Line 3-6</text>
+              <text x={(busPositions[6].x + busPositions[7].x) / 2} y={busPositions[6].y + 20} textAnchor="middle">[5] Line 6-7</text>
+              <text x={busPositions[7].x - 60} y={busPositions[7].y - 50} textAnchor="end" transform="rotate(45 650,300)">[6] Line 7-8</text>
+              <text x={busPositions[8].x + 20} y={(busPositions[2].y + busPositions[8].y) / 2} textAnchor="start">[7] Line 8-2</text>
+              <text x={(busPositions[8].x + busPositions[9].x) / 2} y={busPositions[8].y - 10} textAnchor="middle">[8] Line 8-9</text>
+              <text x={(busPositions[4].x + busPositions[9].x) / 2} y={busPositions[4].y - 10} textAnchor="middle">[9] Line 9-4</text>
             </g>
 
             {/* Generator connection lines */}
             <g stroke="red" strokeWidth="2">
-              <line x1="200" y1="90" x2="200" y2="130" /> {/* G1 connection */}
-              <line x1="600" y1="90" x2="600" y2="130" /> {/* G2 connection */}
-              <line x1="400" y1="510" x2="400" y2="470" /> {/* G3 connection */}
-            </g>
-
-            {/* Load connection lines */}
-            <g stroke="blue" strokeWidth="2">
-              <line x1="300" y1="370" x2="300" y2="390" /> {/* Load 5 connection */}
-              <line x1="500" y1="370" x2="500" y2="390" /> {/* Load 7 connection */}
-              <line x1="400" y1="270" x2="400" y2="290" /> {/* Load 9 connection */}
+              <line x1={busPositions[1].x} y1={busPositions[1].y - 60} x2={busPositions[1].x} y2={busPositions[1].y} />
+              <line x1={busPositions[2].x} y1={busPositions[2].y - 60} x2={busPositions[2].x} y2={busPositions[2].y} />
+              <line x1={busPositions[3].x} y1={busPositions[3].y + 60} x2={busPositions[3].x} y2={busPositions[3].y} />
             </g>
 
             {/* Generators */}
             <g>
-              <g transform="translate(200,70)">
+              <g transform={`translate(${busPositions[1].x},${busPositions[1].y - 60})`}>
                 <GeneratorSymbol withLabel="G1" isSlack={true} />
               </g>
-              <g transform="translate(600,70)">
+              <g transform={`translate(${busPositions[2].x},${busPositions[2].y - 60})`}>
                 <GeneratorSymbol withLabel="G2" />
               </g>
-              <g transform="translate(400,530)">
+              <g transform={`translate(${busPositions[3].x},${busPositions[3].y + 60})`}>
                 <GeneratorSymbol withLabel="G3" />
               </g>
             </g>
 
             {/* Buses */}
-            <g>
-              {/* Bus circles and numbers */}
-              {[
-                { x: 200, y: 150, n: "1" },
-                { x: 600, y: 150, n: "2" },
-                { x: 400, y: 450, n: "3" },
-                { x: 200, y: 250, n: "4" },
-                { x: 300, y: 350, n: "5" },
-                { x: 400, y: 350, n: "6" },
-                { x: 500, y: 350, n: "7" },
-                { x: 600, y: 250, n: "8" },
-                { x: 400, y: 250, n: "9" }
-              ].map(bus => (
-                <g key={bus.n} transform={`translate(${bus.x},${bus.y})`}>
-                  <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
-                  <text 
-                    textAnchor="middle" 
-                    dominantBaseline="middle" 
-                    fontSize="16"
-                  >
-                    {bus.n}
-                  </text>
-                </g>
-              ))}
-            </g>
+            {Object.entries(busPositions).map(([bus, pos]) => (
+              <g key={bus} transform={`translate(${pos.x},${pos.y})`}>
+                <circle r="20" fill="white" stroke="black" strokeWidth="2"/>
+                <text 
+                  textAnchor="middle" 
+                  dominantBaseline="middle" 
+                  fontSize="16"
+                >
+                  {bus}
+                </text>
+              </g>
+            ))}
 
             {/* Loads */}
             <g>
-              <g transform="translate(300,390)">
+              <g transform={`translate(${busPositions[5].x},${busPositions[5].y})`}>
                 <LoadSymbol power={loads.bus5.p} />
               </g>
-              <g transform="translate(500,390)">
+              <g transform={`translate(${busPositions[7].x},${busPositions[7].y})`}>
                 <LoadSymbol power={loads.bus7.p} />
               </g>
-              <g transform="translate(400,290)">
+              <g transform={`translate(${busPositions[9].x},${busPositions[9].y})`}>
                 <LoadSymbol power={loads.bus9.p} />
               </g>
             </g>
 
             {/* Legend */}
-            <g transform="translate(650,500)">
+            <g transform="translate(700,500)">
               <text y="-80" fontSize="14" fontWeight="bold">Legend</text>
               
-              {/* Generator symbol */}
               <g transform="translate(0,-50)">
                 <g transform="scale(0.8)">
                   <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
@@ -162,7 +152,6 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
                 <text x="30" y="5" fontSize="12">Generator</text>
               </g>
               
-              {/* Load symbol */}
               <g transform="translate(0,-10)">
                 <g transform="scale(0.8)">
                   <path 
@@ -175,7 +164,6 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
                 <text x="30" y="15" fontSize="12">Load</text>
               </g>
 
-              {/* Bus symbol */}
               <g transform="translate(0,30)">
                 <circle r="10" fill="white" stroke="black" strokeWidth="2"/>
                 <text x="30" y="5" fontSize="12">Bus</text>
