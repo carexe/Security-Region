@@ -50,17 +50,24 @@ export function SecurityRegion() {
     bus9: { p: 125 }
   });
 
+  // Initial fetch only once when component mounts
   useEffect(() => {
     fetchData();
-  }, [retryCount, currentLoads]);  // Now also depends on currentLoads
+  }, []);  // Empty dependency array - only run once
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
+    fetchData();
   };
 
   const handleLoadChange = (newLoads: Record<string, { p: number }>) => {
     console.log('Loads updated:', newLoads);
     setCurrentLoads(newLoads);
+  };
+
+  const handleCalculate = () => {
+    console.log('Calculating with loads:', currentLoads);
+    fetchData();
   };
 
   const fetchData = async () => {
@@ -102,7 +109,7 @@ export function SecurityRegion() {
     }
   };
 
-  if (loading) {
+  if (loading && !data) {  // Only show loading on initial load
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
@@ -133,7 +140,19 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
-      <LoadControl onLoadChange={handleLoadChange} />
+      <LoadControl 
+        onLoadChange={handleLoadChange} 
+        onCalculate={handleCalculate}
+      />
+      
+      {loading && (  // Show loading overlay during calculations
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
+            <span>Calculating...</span>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <Card>

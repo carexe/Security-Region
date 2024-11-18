@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 
 interface LoadControlProps {
   onLoadChange: (loads: Record<string, { p: number }>) => void;
+  onCalculate: () => void;
 }
 
-const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange }) => {
+const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) => {
   // Initial load values from the IEEE 9 bus system
   const [loads, setLoads] = useState({
     bus5: { p: 90 },
@@ -35,7 +36,15 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange }) => {
 
   return (
     <div className="bg-white shadow rounded-lg p-6 mb-6">
-      <h2 className="text-xl font-bold mb-4">Load Control</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Load Control</h2>
+        <button 
+          onClick={onCalculate}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+        >
+          Calculate Security Region
+        </button>
+      </div>
       <div className="space-y-6">
         {Object.entries(loads).map(([bus, load]) => (
           <div key={bus} className="space-y-2">
