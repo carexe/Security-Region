@@ -69,61 +69,10 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
   };
 
   const getFeasibleRegionPoints = () => {
-    const points: Point[] = [];
-    const constraints = data.constraints;
-    
-    // Add vertices at constraint intersections
-    for (let i = 0; i < constraints.length; i++) {
-      for (let j = i + 1; j < constraints.length; j++) {
-        const c1 = constraints[i].coefficients;
-        const c2 = constraints[j].coefficients;
-        
-        const det = c1.a * c2.b - c2.a * c1.b;
-        if (Math.abs(det) > 1e-10) {
-          const x = (c1.c * c2.b - c2.c * c1.b) / det;
-          const y = (c1.a * c2.c - c2.a * c1.c) / det;
-          
-          if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
-            // Check if point satisfies all constraints
-            let feasible = true;
-            for (const c of constraints) {
-              if (c.coefficients.a * x + c.coefficients.b * y > c.coefficients.c + 1e-10) {
-                feasible = false;
-                break;
-              }
-            }
-            if (feasible) {
-              points.push({ x, y, constraint: 'Feasible Region' });
-            }
-          }
-        }
-      }
-    }
-
-    // Add boundary points
-    points.push({ x: 0, y: 0, constraint: 'Feasible Region' });
-    points.push({ x: limits.g2_max, y: 0, constraint: 'Feasible Region' });
-    points.push({ x: 0, y: limits.g3_max, constraint: 'Feasible Region' });
-    points.push({ x: limits.g2_max, y: limits.g3_max, constraint: 'Feasible Region' });
-
-    // Sort points clockwise around centroid
-    const centroid = {
-      x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-      y: points.reduce((sum, p) => sum + p.y, 0) / points.length
-    };
-
-    points.sort((a, b) => {
-      const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
-      const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
-      return angleA - angleB;
-    });
-
-    // Close the polygon
-    if (points.length > 0) {
-      points.push({ ...points[0] });
-    }
-
-    return points;
+    return data.feasibleRegion.map(point => ({
+      ...point,
+      constraint: 'Feasible Region'
+    }));
   };
 
   return (

@@ -35,6 +35,7 @@ interface SecurityRegionData {
   statistics: Statistics;
   limits: Limits;
   constraints: Constraint[];
+  feasibleRegion: Array<{x: number, y: number}>;
 }
 
 export function SecurityRegion() {
