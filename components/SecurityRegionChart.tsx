@@ -29,11 +29,12 @@ interface Props {
 }
 
 const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
+  // Function to calculate the intersection points and create the feasible region polygon
   const calculateFeasibleRegion = () => {
     const vertices: Point[] = [];
     const constraints = data.constraints;
 
-    // Compute intersection points for all constraint pairs
+    // Compute intersection points for all pairs of constraints
     for (let i = 0; i < constraints.length; i++) {
       for (let j = i + 1; j < constraints.length; j++) {
         const { a: a1, b: b1, c: c1 } = constraints[i].coefficients;
@@ -44,7 +45,7 @@ const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
           const x = (b2 * c1 - b1 * c2) / det;
           const y = (a1 * c2 - a2 * c1) / det;
 
-          // Only add points within bounds
+          // Only include points within limits
           if (x >= 0 && x <= limits.g2_max && y >= 0 && y <= limits.g3_max) {
             vertices.push({ x, y });
           }
@@ -52,13 +53,13 @@ const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
       }
     }
 
-    // Include boundary vertices
+    // Add boundary points
     vertices.push({ x: 0, y: 0 });
     vertices.push({ x: limits.g2_max, y: 0 });
     vertices.push({ x: 0, y: limits.g3_max });
     vertices.push({ x: limits.g2_max, y: limits.g3_max });
 
-    // Sort vertices in clockwise order
+    // Sort vertices to form a polygon
     const centroid = vertices.reduce(
       (acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }),
       { x: 0, y: 0 }
@@ -77,10 +78,11 @@ const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
     return vertices;
   };
 
+  // Tooltip that shows exact pointer position
   const CustomTooltip = ({ active, payload, coordinate }: any) => {
-    if (active && payload && payload.length) {
+    if (active && coordinate) {
       return (
-        <div className="bg-white p-2 border shadow">
+        <div className="custom-tooltip">
           <p>Pointer: ({coordinate.x.toFixed(2)}, {coordinate.y.toFixed(2)})</p>
         </div>
       );
@@ -125,10 +127,10 @@ const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
       {data.constraints.map((constraint, index) => {
         const { a, b, c } = constraint.coefficients;
 
-        // Calculate constraint line intersections with axes
+        // Calculate line intersections with axes
         const points = [
-          { x: 0, y: c / b }, // Y-axis intersection
-          { x: c / a, y: 0 }, // X-axis intersection
+          { x: 0, y: c / b }, // Intersection with Y-axis
+          { x: c / a, y: 0 }, // Intersection with X-axis
         ].filter(
           (p) => p.x >= 0 && p.x <= limits.g2_max && p.y >= 0 && p.y <= limits.g3_max
         );
@@ -149,7 +151,7 @@ const SecurityRegionChart: React.FC<Props> = ({ data, limits }) => {
         return null;
       })}
 
-      {/* Boundary Lines */}
+      {/* Reference Lines */}
       <ReferenceLine x={limits.g2_max} stroke="green" label="G2 Max" />
       <ReferenceLine y={limits.g3_max} stroke="green" label="G3 Max" />
     </ComposedChart>
