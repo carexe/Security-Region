@@ -24,6 +24,7 @@ interface Constraint {
 interface SecurityRegionChartProps {
   data: {
     constraints: Constraint[];
+    feasibleRegion: Array<{x: number, y: number}>;
   };
   limits: {
     g2_max: number;
