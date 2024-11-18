@@ -47,7 +47,6 @@ export function SecurityRegion() {
     fetchData();
   }, [retryCount]);
 
-  //test
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -60,12 +59,11 @@ export function SecurityRegion() {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        mode: 'cors'  // Changed from default to explicit cors
+        mode: 'cors',
+        credentials: 'omit'
       });
-      
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         let errorMessage;
