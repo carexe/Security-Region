@@ -57,30 +57,13 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
     return points;
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const { x } = payload[0].payload; // Hovered x-coordinate
-      const hoveredConstraint = payload[0].name; // The name of the constraint
-  
-      // Find the constraint equation from the data
-      const constraint = data.constraints.find(
-        (c) => c.description === hoveredConstraint
+      return (
+        <div className="bg-white p-2 border border-gray-200 rounded shadow">
+          <p>({payload[0].payload.x.toFixed(2)}, {payload[0].payload.y.toFixed(2)})</p>
+        </div>
       );
-  
-      if (constraint) {
-        const { a, b, c } = constraint.coefficients;
-  
-        // Compute the exact y-coordinate for the hovered x
-        const y = (c - a * x) / b;
-  
-        return (
-          <div className="bg-white p-2 border border-gray-200 rounded shadow">
-            <p><strong>{hoveredConstraint}</strong></p>
-            <p>x: {x.toFixed(2)} MW</p>
-            <p>y: {y.toFixed(2)} MW</p>
-          </div>
-        );
-      }
     }
     return null;
   };
