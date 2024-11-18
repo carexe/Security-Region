@@ -55,11 +55,9 @@ export function SecurityRegion() {
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Changed to 'include' to match backend's supports_credentials: True
-        mode: 'cors'  // Explicitly set CORS mode
+        credentials: 'omit', // Changed from 'include' to 'omit'
+        mode: 'cors'
       });
-      
-      console.log('Fetching from:', `${apiUrl}/api/security-region`); // Debug log
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -68,10 +66,9 @@ export function SecurityRegion() {
       setData(result);
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Fetch error:', err); // Debug log
-      console.error('API URL:', process.env.NEXT_PUBLIC_API_URL); // Debug log
-      setError('Failed to fetch security region data: ' + errorMessage);
+      console.error('Fetch error:', err);
+      console.error('API URL:', process.env.NEXT_PUBLIC_API_URL);
+      setError('Failed to fetch security region data: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
