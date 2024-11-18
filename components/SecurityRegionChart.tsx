@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, 
          Tooltip, Legend, ReferenceLine } from 'recharts';
 
@@ -28,20 +27,22 @@ interface SecurityRegionChartProps {
   limits: Limits;
 }
 
+interface Point {
+  x: number;
+  y: number;
+  constraint: string;
+}
+
 const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits }) => {
-  // Generate points for the feasible region boundary
-  const getFeasiblePoints = () => {
-    const points = [];
+  const getFeasiblePoints = (): Point[] => {
+    const points: Point[] = [];
     data.constraints.forEach((constraint) => {
       const { a, b, c } = constraint.coefficients;
       
-      // Skip constraints with very small coefficients
       if (Math.abs(a) < 1e-10 && Math.abs(b) < 1e-10) return;
       
-      // Generate points along the constraint line
       const numPoints = 50;
       if (Math.abs(b) < 1e-10) {
-        // Vertical line
         const x = c / a;
         if (x >= 0 && x <= limits.g2_max) {
           for (let y = 0; y <= limits.g3_max; y += limits.g3_max / numPoints) {
@@ -49,7 +50,6 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           }
         }
       } else {
-        // Regular line
         for (let x = 0; x <= limits.g2_max; x += limits.g2_max / numPoints) {
           const y = (-a * x + c) / b;
           if (y >= 0 && y <= limits.g3_max) {
@@ -96,7 +96,6 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           wrapperStyle={{ paddingLeft: '20px' }}
         />
         
-        {/* Plot constraint lines */}
         {data.constraints.map((constraint, index) => (
           <Scatter
             key={index}
@@ -110,7 +109,6 @@ const SecurityRegionChart: React.FC<SecurityRegionChartProps> = ({ data, limits 
           />
         ))}
         
-        {/* Generator limits */}
         <ReferenceLine 
           x={limits.g2_max} 
           stroke="green" 
