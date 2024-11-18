@@ -6,6 +6,7 @@ import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
 import LoadControl from './LoadControl';
+import SingleLineDiagram from './SingleLineDiagram';
 
 interface LoadData {
   bus5: { p: number };
@@ -146,6 +147,9 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
+      <div className="mb-6">
+        <SingleLineDiagram loads={currentLoads} />
+      </div>
       <LoadControl 
         onLoadChange={handleLoadChange} 
         onCalculate={handleCalculate}
