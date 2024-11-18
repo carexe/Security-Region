@@ -60,15 +60,15 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
 
             {/* Line labels */}
             <g className="text-xs">
-              <text x="180" y="200" textAnchor="end">Line 1-4</text>
-              <text x="230" y="320" textAnchor="start" transform="rotate(-45 230,320)">Line 4-5</text>
-              <text x="350" y="370" textAnchor="middle">Line 5-6</text>
-              <text x="420" y="420" textAnchor="start">Line 3-6</text>
-              <text x="450" y="370" textAnchor="middle">Line 6-7</text>
-              <text x="570" y="320" textAnchor="end" transform="rotate(45 570,320)">Line 7-8</text>
-              <text x="620" y="200" textAnchor="start">Line 8-2</text>
-              <text x="500" y="240" textAnchor="middle">Line 8-9</text>
-              <text x="300" y="240" textAnchor="middle">Line 9-4</text>
+              <text x="180" y="200" textAnchor="end">[1] Line 1-4</text>
+              <text x="230" y="320" textAnchor="start" transform="rotate(-45 230,320)">[2] Line 4-5</text>
+              <text x="350" y="370" textAnchor="middle">[3] Line 5-6</text>
+              <text x="420" y="420" textAnchor="start">[4] Line 3-6</text>
+              <text x="450" y="370" textAnchor="middle">[5] Line 6-7</text>
+              <text x="570" y="320" textAnchor="end" transform="rotate(45 570,320)">[6] Line 7-8</text>
+              <text x="620" y="200" textAnchor="start">[7] Line 8-2</text>
+              <text x="500" y="240" textAnchor="middle">[8] Line 8-9</text>
+              <text x="300" y="240" textAnchor="middle">[9] Line 9-4</text>
             </g>
 
             {/* Buses */}

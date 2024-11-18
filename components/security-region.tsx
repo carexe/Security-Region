@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
 import LoadControl from './LoadControl';
 import SingleLineDiagram from './SingleLineDiagram';
+import { formatConstraintDescription } from './LineMapping';
 
 interface LoadData {
   bus5: { p: number };
@@ -199,7 +200,7 @@ export function SecurityRegion() {
                   className="p-2 rounded border"
                   style={{ borderColor: constraint.color }}
                 >
-                  <p className="text-sm font-medium">{constraint.description}</p>
+                  <p className="text-sm font-medium">{formatConstraintDescription(constraint.description)}</p>
                   <p className="text-xs text-gray-600">
                     {constraint.coefficients.a.toFixed(3)}·P_g2 + 
                     {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
