@@ -26,14 +26,37 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
   const BUS_RADIUS = 20;  // Radius of bus circles
 
   // SVG Generator Symbol definitions
-  const GeneratorSymbol = ({ withLabel, isSlack = false }: { withLabel: string, isSlack?: boolean }) => (
+  const GeneratorSymbol = ({ 
+    withLabel, 
+    isSlack = false, 
+    labelOffset = { x: 0, y: -30 }  // Default offset
+  }: { 
+    withLabel: string, 
+    isSlack?: boolean,
+    labelOffset?: { x: number, y: number }
+  }) => (
     <g>
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
       <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
-      {/* Moved labels up by adjusting y values */}
-      <text y="-30" textAnchor="middle" fill="red" fontSize="14">{withLabel}</text>
+      <text 
+        x={labelOffset.x} 
+        y={labelOffset.y} 
+        textAnchor="middle" 
+        fill="red" 
+        fontSize="14"
+      >
+        {withLabel}
+      </text>
       {isSlack && (
-        <text y="-45" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
+        <text 
+          x={labelOffset.x} 
+          y={labelOffset.y - 15} 
+          textAnchor="middle" 
+          fill="red" 
+          fontSize="10"
+        >
+          (Slack Bus)
+        </text>
       )}
     </g>
   );
@@ -109,13 +132,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
             {/* Generators */}
             <g>
               <g transform={`translate(${busPositions[1].x},${busPositions[1].y - 60})`}>
-                <GeneratorSymbol withLabel="G1" isSlack={true} />
+                <GeneratorSymbol withLabel="G1" isSlack={true} labelOffset={{ x: 0, y: -30 }} />
               </g>
               <g transform={`translate(${busPositions[2].x},${busPositions[2].y - 60})`}>
-                <GeneratorSymbol withLabel="G2" />
+                <GeneratorSymbol withLabel="G2" labelOffset={{ x: 0, y: -30 }} />
               </g>
               <g transform={`translate(${busPositions[3].x},${busPositions[3].y + 60})`}>
-                <GeneratorSymbol withLabel="G3" />
+                <GeneratorSymbol withLabel="G3" labelOffset={{ x: 0, y: 30 }} />
               </g>
             </g>
 
