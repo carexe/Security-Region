@@ -69,13 +69,15 @@ export function SecurityRegion() {
       });
       
       const result = await response.json();
+      console.log('Full API Response:', result);
+      console.log('Feasible Region Vertices:', result.feasibleRegion);
       console.log('Received data structure:', {
         statisticsKeys: Object.keys(result.statistics),
         limitsKeys: Object.keys(result.limits),
         numConstraints: result.constraints.length,
         sampleConstraint: result.constraints[0]
       });
-
+   
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
       }
