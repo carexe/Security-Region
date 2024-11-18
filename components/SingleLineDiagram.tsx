@@ -30,9 +30,10 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ loads }) => {
     <g>
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
       <path d="M-7,-7 L7,7 M-7,7 L7,-7" stroke="red" strokeWidth="2"/>
-      <text y="-25" textAnchor="middle" fill="red" fontSize="14">{withLabel}</text>
+      {/* Moved labels up by adjusting y values */}
+      <text y="-30" textAnchor="middle" fill="red" fontSize="14">{withLabel}</text>
       {isSlack && (
-        <text y="-40" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
+        <text y="-45" textAnchor="middle" fill="red" fontSize="10">(Slack Bus)</text>
       )}
     </g>
   );
