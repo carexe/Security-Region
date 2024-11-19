@@ -223,7 +223,7 @@ export function SecurityRegion() {
         <div className="text-center space-y-2">
           <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
           <p className="text-sm text-gray-600">
-            This may take up to 30 seconds as we wake up the free-tier server...
+            This may take up to 60 seconds as we wake up the free-tier server...
           </p>
           <p className="text-xs text-gray-500">
             Free tier instance at {process.env.NEXT_PUBLIC_API_URL}
