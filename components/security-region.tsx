@@ -49,10 +49,11 @@ interface SecurityRegionData {
 
 export function SecurityRegion() {
   const [data, setData] = useState<SecurityRegionData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);       // Keep this - used for initial loading
+  const [calculating, setCalculating] = useState(false); // Add this - used for calculation transitions
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [serverStarting, setServerStarting] = useState(true); // Start with true
+  const [serverStarting, setServerStarting] = useState(true);
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
@@ -165,8 +166,9 @@ export function SecurityRegion() {
         console.log('Server not ready during fetch attempt');
         return;
       }
-
+  
       setLoading(true);
+      setCalculating(true); // Set calculating state
       setError(null);
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -207,6 +209,7 @@ export function SecurityRegion() {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       }
     } finally {
+      setCalculating(false); // Reset calculating state
       setLoading(false);
     }
   };
@@ -269,11 +272,26 @@ export function SecurityRegion() {
         onCalculate={handleCalculate}
       />
       
-      {loading && (  // Show loading overlay during calculations
+      {(loading || calculating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
-            <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
-            <span>Calculating...</span>
+          <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
+            <div className="flex items-center space-x-3">
+              <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
+              <span className="text-lg font-medium">
+                {calculating ? "Calculating Security Region..." : "Preparing Calculations..."}
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {calculating ? (
+                <div className="space-y-2">
+                  <p>Running N-1 security analysis</p>
+                  <p>Computing feasible region</p>
+                  <p>Analyzing binding constraints</p>
+                </div>
+              ) : (
+                <p>Setting up computation parameters...</p>
+              )}
+            </div>
           </div>
         </div>
       )}
