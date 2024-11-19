@@ -88,11 +88,15 @@ export function SecurityRegion() {
         setServerStarting(true);
         return false;
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      // Type guard for error object
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : 'Unknown type';
+      
       console.log('Server check error details:', {
         error,
-        message: error.message,
-        type: error.name
+        message: errorMessage,
+        type: errorName
       });
       setServerStarting(true);
       return false;
