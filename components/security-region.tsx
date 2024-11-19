@@ -52,32 +52,48 @@ export function SecurityRegion() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [serverStarting, setServerStarting] = useState(false);
+  const [serverStarting, setServerStarting] = useState(true); // Start with true
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
     bus9: { p: 125 }
   });
 
+  // Add useEffect to monitor serverStarting state changes
+  useEffect(() => {
+    console.log('Server starting state changed:', serverStarting);
+  }, [serverStarting]);
+
   const checkServerStatus = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      console.log('Checking server status at:', apiUrl);
+      
       const response = await fetch(`${apiUrl}/health`, {
+        mode: 'cors',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
       
+      console.log('Server response status:', response.status);
+      
       if (response.ok) {
+        console.log('Server is ready');
         setServerStarting(false);
         return true;
       } else {
+        console.log('Server is not ready, status:', response.status);
         setServerStarting(true);
         return false;
       }
     } catch (error) {
-      console.log('Server check error:', error);
+      console.log('Server check error details:', {
+        error,
+        message: error.message,
+        type: error.name
+      });
       setServerStarting(true);
       return false;
     }
@@ -86,17 +102,24 @@ export function SecurityRegion() {
   // Initial fetch only once when component mounts
   useEffect(() => {
     const initializeData = async () => {
+      console.log('Initializing data...');
+      setServerStarting(true);  // Start with serverStarting true
+      
       const isServerReady = await checkServerStatus();
       if (!isServerReady) {
+        console.log('Server not ready, starting polling...');
         const pollInterval = setInterval(async () => {
+          console.log('Polling server status...');
           const ready = await checkServerStatus();
           if (ready) {
+            console.log('Server is ready after polling');
             clearInterval(pollInterval);
             fetchData();
           }
         }, 2000);
         return () => clearInterval(pollInterval);
       }
+      console.log('Server ready on initial check');
       fetchData();
     };
 
@@ -135,6 +158,7 @@ export function SecurityRegion() {
       const isServerReady = await checkServerStatus();
       if (!isServerReady) {
         setServerStarting(true);
+        console.log('Server not ready during fetch attempt');
         return;
       }
 
@@ -152,6 +176,7 @@ export function SecurityRegion() {
       
       const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
         method: 'GET',
+        mode: 'cors',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -182,7 +207,9 @@ export function SecurityRegion() {
     }
   };
 
+  // Check serverStarting first, before any other conditions
   if (serverStarting) {
+    console.log('Rendering server starting message');
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
@@ -190,6 +217,9 @@ export function SecurityRegion() {
           <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
           <p className="text-sm text-gray-600">
             This may take up to 30 seconds as we wake up the free-tier server...
+          </p>
+          <p className="text-xs text-gray-500">
+            Free tier instance at {process.env.NEXT_PUBLIC_API_URL}
           </p>
         </div>
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
