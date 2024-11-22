@@ -49,7 +49,7 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
             onClick={onCalculate}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
-            Calculate
+            Calculate Security Region
           </button>
         </div>
       </CardHeader>
