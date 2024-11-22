@@ -331,8 +331,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           </div>
 
           {/* Right side: Branch Parameters */}
-          {/* Right side: Branch Parameters */}
-          <div className="lg:w-96"> {/* Made wider to accommodate more columns */}
+          <div className="lg:w-96">
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-lg font-semibold mb-4">Branch Parameters</h3>
               <div className="overflow-x-auto">
@@ -341,7 +340,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
                     <tr className="border-b">
                       <th className="text-left p-2">Branch</th>
                       <th className="text-right p-2">Rating (MVA)</th>
-                      <th className="text-right p-2">X (p.u.) Zb=529 ohm</th>
+                      <th className="text-right p-2">X (p.u.)</th>
                     </tr>
                   </thead>
                   <tbody>
