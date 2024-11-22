@@ -108,8 +108,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           {additionalBranches.map((branch, index) => (
             <tr key={`new-${index}`} className="border-b hover:bg-gray-50 text-purple-600">
               <td className="p-2">Bus {branch.fromBus} - Bus {branch.toBus}</td>
+              {/* From ChatGPT */}
               <td className="text-right p-2">
-                {branchRatings[branch.templateBranch]} {/* Using template branch rating */}
+                {`Rating: ${branchRatings[branch.templateBranch]?.rating || 'N/A'}, Reactance: ${branchRatings[branch.templateBranch]?.reactance || 'N/A'}`}
               </td>
             </tr>
           ))}
