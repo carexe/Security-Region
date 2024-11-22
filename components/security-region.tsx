@@ -273,7 +273,7 @@ export function SecurityRegion() {
       setLoading(false);
     }
   };
-  // Check serverStarting first, before any other conditions
+  // Check serverStarting first, before any other conditions. Test
   if (serverStarting) {
     console.log('Rendering server starting message');
     return (
