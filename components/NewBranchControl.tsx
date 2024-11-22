@@ -3,12 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from 'lucide-react'; // Import trash icon
-import { lineNames } from './LineMapping';
+import { lineNames, LineNumberType } from './LineMapping';
 
 interface NewBranch {
   fromBus: number;
   toBus: number;
-  templateBranch: number;
+  templateBranch: LineNumberType;  // Update this type
 }
 
 interface NewBranchControlProps {
@@ -27,7 +27,7 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
   const [newBranch, setNewBranch] = useState<NewBranch>({
     fromBus: 1,
     toBus: 2,
-    templateBranch: 1
+    templateBranch: 1 as LineNumberType
   });
   
   const buses = Array.from({ length: 9 }, (_, i) => i + 1);
@@ -114,9 +114,9 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(lineNames).map(([branchNum, name]) => (
-                    <SelectItem key={branchNum} value={branchNum}>
-                      {name}
+                  {(Object.keys(lineNames) as unknown as LineNumberType[]).map((branchNum) => (
+                    <SelectItem key={branchNum} value={branchNum.toString()}>
+                      {lineNames[branchNum]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -143,7 +143,7 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
                   >
                     <span>
                       Bus {branch.fromBus} - Bus {branch.toBus} 
-                      (Parameters from {lineNames[branch.templateBranch]})
+                      (Parameters from {lineNames[branch.templateBranch as LineNumberType]})
                     </span>
                     <Button
                       variant="destructive"

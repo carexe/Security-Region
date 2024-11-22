@@ -1,4 +1,4 @@
-export const lineNames = {
+export const lineNames: Record<number, string> = {
   1: "Bus 1 - Bus 4",
   2: "Bus 4 - Bus 5",
   3: "Bus 5 - Bus 6",
@@ -8,7 +8,9 @@ export const lineNames = {
   7: "Bus 8 - Bus 2",
   8: "Bus 8 - Bus 9",
   9: "Bus 9 - Bus 4"
-};
+} as const;
+
+export type LineNumberType = keyof typeof lineNames;
 
 export const formatConstraintDescription = (description: string): string => {
   // Replace branch numbers with line names
