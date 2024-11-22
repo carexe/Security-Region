@@ -13,19 +13,14 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
-// Define status type to make state management clearer
-type Status = 'idle' | 'loading' | 'error' | 'success';
-
 export function SecurityRegion() {
-  // Consolidated state
-  const [status, setStatus] = useState<Status>('idle');
+  // State management
   const [data, setData] = useState<SecurityRegionData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverStarting, setServerStarting] = useState(true);
   
-  // Cache API URL
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-  // Initial state for controls
+  // Control states
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
@@ -51,103 +46,84 @@ export function SecurityRegion() {
 
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
 
-  // Memoized fetch function
-  // Update just the fetchData function in your SecurityRegion component:
+  // API URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-const fetchData = useCallback(async () => {
-  if (status === 'loading') return; // Prevent multiple concurrent requests
-  
-  try {
-    setStatus('loading');
-    
-    // Build query params
-    const queryParams = new URLSearchParams({
-      bus5_p: currentLoads.bus5.p.toString(),
-      bus7_p: currentLoads.bus7.p.toString(),
-      bus9_p: currentLoads.bus9.p.toString(),
-      ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
-        ...acc,
-        [`branch${branch}_rating`]: params.rating.toString()
-      }), {}),
-      g2_min: generatorLimits.g2.min.toString(),
-      g2_max: generatorLimits.g2.max.toString(),
-      g3_min: generatorLimits.g3.min.toString(),
-      g3_max: generatorLimits.g3.max.toString(),
-      new_branches: JSON.stringify(additionalBranches)
-    });
-
-    // First check if server is available
+  // Server status check
+  const checkServerStatus = useCallback(async () => {
     try {
-      const healthCheck = await fetch(`${apiUrl}/health`, {
-        method: 'GET',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: {
-          'Accept': 'application/json',
-        }
+      const response = await fetch(`${apiUrl}/health`);
+      if (response.ok) {
+        setServerStarting(false);
+        return true;
+      }
+      setServerStarting(true);
+      return false;
+    } catch (error) {
+      setServerStarting(true);
+      return false;
+    }
+  }, [apiUrl]);
+
+  // Data fetching
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const queryParams = new URLSearchParams({
+        bus5_p: currentLoads.bus5.p.toString(),
+        bus7_p: currentLoads.bus7.p.toString(),
+        bus9_p: currentLoads.bus9.p.toString(),
+        ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
+          ...acc,
+          [`branch${branch}_rating`]: params.rating.toString()
+        }), {}),
+        g2_min: generatorLimits.g2.min.toString(),
+        g2_max: generatorLimits.g2.max.toString(),
+        g3_min: generatorLimits.g3.min.toString(),
+        g3_max: generatorLimits.g3.max.toString(),
+        new_branches: JSON.stringify(additionalBranches)
       });
+
+      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`);
       
-      if (!healthCheck.ok) {
-        throw new Error('Backend server is not ready');
+      if (!response.ok) {
+        if (response.status === 502) {
+          setServerStarting(true);
+          throw new Error('Server is starting up. Please wait...');
+        }
+        throw new Error(`Server error: ${response.status}`);
       }
-    } catch (healthError) {
-      console.warn('Health check failed:', healthError);
-      // Continue anyway, as the main request might still work
-    }
 
-    // Use AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased timeout to 30s
-
-    const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit', // Add this to prevent CORS preflight
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
+      const result = await response.json();
+      
+      if (!result.statistics || !result.limits || !result.constraints) {
+        throw new Error('Invalid data format received from server');
       }
-    });
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 502) {
-        throw new Error('Backend server is starting up. Please try again in a moment.');
+      setData(result);
+      setServerStarting(false);
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      
+      // If server is starting, retry after delay
+      if (errorMessage.includes('Server is starting up')) {
+        setTimeout(() => {
+          fetchData();
+        }, 3000);
       }
-      throw new Error(`Server error: ${response.status}`);
+    } finally {
+      setLoading(false);
     }
+  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches]);
 
-    const result = await response.json();
-
-    if (!result.statistics || !result.limits || !result.constraints) {
-      throw new Error('Invalid data format received from server');
-    }
-
-    setData(result);
-    setStatus('success');
-    setError(null);
-  } catch (err) {
-    console.error('Fetch error:', err);
-    let errorMessage = 'An unknown error occurred';
-    
-    if (err instanceof Error) {
-      if (err.name === 'AbortError') {
-        errorMessage = 'Request timed out. Please try again.';
-      } else if (err.message.includes('Backend server is starting')) {
-        errorMessage = err.message;
-        // Retry automatically after a delay
-        setTimeout(fetchData, 3000);
-      } else {
-        errorMessage = err.message;
-      }
-    }
-    
-    setError(errorMessage);
-    setStatus('error');
-  }
-}, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, status]);
+  // Initial data fetch
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Event handlers
   const handleLoadChange = (newLoads: LoadData) => {
@@ -173,43 +149,49 @@ const fetchData = useCallback(async () => {
     setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Render functions
-  const renderLoading = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <div className="flex items-center space-x-3">
-          <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
-          <span className="text-lg font-medium">Calculating Security Region...</span>
+  // Render loading state
+  if (serverStarting) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
+          <p className="text-sm text-gray-600">
+            This may take up to 60 seconds as we wake up the free-tier server...
+          </p>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const renderError = () => (
-    <div className="p-4">
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          {error}
-          <button 
-            onClick={fetchData}
-            className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
-          >
-            Retry
-          </button>
-        </AlertDescription>
-      </Alert>
-    </div>
-  );
+  if (loading && !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
-  // Main render
-  if (status === 'idle' || !data) return null;
-  if (status === 'error') return renderError();
+  if (error) {
+    return (
+      <div className="p-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+            <button 
+              onClick={fetchData}
+              className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
+            >
+              Retry
+            </button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="container mx-auto p-4">
@@ -244,8 +226,19 @@ const fetchData = useCallback(async () => {
         />
       </div>
 
-      {status === 'loading' && renderLoading()}
-
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center space-x-3">
+              <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
+              <span className="text-lg font-medium">
+                Calculating Security Region...
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         <Card>
           <CardHeader>
