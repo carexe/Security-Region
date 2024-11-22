@@ -51,7 +51,7 @@ export function SecurityRegion() {
   const checkServerStatus = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/health`, {
+      const response = await fetch(`${apiUrl}/api/security-region`, {  // Use the main endpoint instead of /health
         mode: 'cors',
         headers: {
           'Accept': 'application/json',
@@ -70,15 +70,11 @@ export function SecurityRegion() {
       return false;
     }
   };
-
+  
   const fetchData = async () => {
+    if (loading) return; // Prevent multiple simultaneous requests
+    
     try {
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        setTimeout(fetchData, 3000);
-        return;
-      }
-
       setLoading(true);
       setCalculating(true);
       setError(null);
@@ -99,7 +95,7 @@ export function SecurityRegion() {
         g3_max: generatorLimits.g3.max.toString(),
         new_branches: JSON.stringify(additionalBranches)
       });
-
+  
       const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
         mode: 'cors',
         headers: {
@@ -107,17 +103,22 @@ export function SecurityRegion() {
           'Content-Type': 'application/json'
         }
       });
-
+      
+      if (response.status === 502) {
+        setServerStarting(true);
+        throw new Error('Server is starting up. Please wait...');
+      }
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+  
       const result = await response.json();
-
+  
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
       }
-
+  
       setData(result);
       setServerStarting(false);
     } catch (err) {
@@ -125,10 +126,11 @@ export function SecurityRegion() {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
       
-      // Check if server is starting and retry
-      if (errorMessage.includes('502')) {
-        setServerStarting(true);
-        setTimeout(fetchData, 3000);
+      // If server is starting, retry after delay
+      if (errorMessage.includes('Server is starting up')) {
+        setTimeout(() => {
+          fetchData();
+        }, 3000);
       }
     } finally {
       setCalculating(false);
