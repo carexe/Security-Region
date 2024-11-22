@@ -52,62 +52,102 @@ export function SecurityRegion() {
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
 
   // Memoized fetch function
-  const fetchData = useCallback(async () => {
-    if (status === 'loading') return; // Prevent multiple concurrent requests
+  // Update just the fetchData function in your SecurityRegion component:
+
+const fetchData = useCallback(async () => {
+  if (status === 'loading') return; // Prevent multiple concurrent requests
+  
+  try {
+    setStatus('loading');
     
+    // Build query params
+    const queryParams = new URLSearchParams({
+      bus5_p: currentLoads.bus5.p.toString(),
+      bus7_p: currentLoads.bus7.p.toString(),
+      bus9_p: currentLoads.bus9.p.toString(),
+      ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
+        ...acc,
+        [`branch${branch}_rating`]: params.rating.toString()
+      }), {}),
+      g2_min: generatorLimits.g2.min.toString(),
+      g2_max: generatorLimits.g2.max.toString(),
+      g3_min: generatorLimits.g3.min.toString(),
+      g3_max: generatorLimits.g3.max.toString(),
+      new_branches: JSON.stringify(additionalBranches)
+    });
+
+    // First check if server is available
     try {
-      setStatus('loading');
-      
-      // Build query params
-      const queryParams = new URLSearchParams({
-        bus5_p: currentLoads.bus5.p.toString(),
-        bus7_p: currentLoads.bus7.p.toString(),
-        bus9_p: currentLoads.bus9.p.toString(),
-        ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
-          ...acc,
-          [`branch${branch}_rating`]: params.rating.toString()
-        }), {}),
-        g2_min: generatorLimits.g2.min.toString(),
-        g2_max: generatorLimits.g2.max.toString(),
-        g3_min: generatorLimits.g3.min.toString(),
-        g3_max: generatorLimits.g3.max.toString(),
-        new_branches: JSON.stringify(additionalBranches)
-      });
-
-      // Use AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
+      const healthCheck = await fetch(`${apiUrl}/health`, {
         method: 'GET',
-        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
         }
       });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      
+      if (!healthCheck.ok) {
+        throw new Error('Backend server is not ready');
       }
-
-      const result = await response.json();
-
-      if (!result.statistics || !result.limits || !result.constraints) {
-        throw new Error('Invalid data format received from server');
-      }
-
-      setData(result);
-      setStatus('success');
-      setError(null);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setStatus('error');
+    } catch (healthError) {
+      console.warn('Health check failed:', healthError);
+      // Continue anyway, as the main request might still work
     }
-  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches]);
+
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased timeout to 30s
+
+    const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit', // Add this to prevent CORS preflight
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 502) {
+        throw new Error('Backend server is starting up. Please try again in a moment.');
+      }
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.statistics || !result.limits || !result.constraints) {
+      throw new Error('Invalid data format received from server');
+    }
+
+    setData(result);
+    setStatus('success');
+    setError(null);
+  } catch (err) {
+    console.error('Fetch error:', err);
+    let errorMessage = 'An unknown error occurred';
+    
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (err.message.includes('Backend server is starting')) {
+        errorMessage = err.message;
+        // Retry automatically after a delay
+        setTimeout(fetchData, 3000);
+      } else {
+        errorMessage = err.message;
+      }
+    }
+    
+    setError(errorMessage);
+    setStatus('error');
+  }
+}, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, status]);
 
   // Event handlers
   const handleLoadChange = (newLoads: LoadData) => {
