@@ -99,7 +99,10 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           {Object.entries(lineNames).map(([branchNum, name]) => (
             <tr key={branchNum} className="border-b hover:bg-gray-50">
               <td className="p-2">{name}</td>
-              <td className="text-right p-2">{branchRatings[parseInt(branchNum)]}</td>
+              {/* From ChatGPT */}
+              <td className="text-right p-2">
+                {`Rating: ${branchRatings[parseInt(branchNum)]?.rating || 'N/A'}, Reactance: ${branchRatings[parseInt(branchNum)]?.reactance || 'N/A'}`}
+              </td>
             </tr>
           ))}
           {additionalBranches.map((branch, index) => (
