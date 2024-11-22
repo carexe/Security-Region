@@ -327,6 +327,7 @@ export function SecurityRegion() {
       <SingleLineDiagram 
         loads={currentLoads} 
         additionalBranches={additionalBranches}
+        branchRatings={branchRatings}
       />
       
       <div className="space-y-6">
