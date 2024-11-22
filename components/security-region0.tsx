@@ -7,30 +7,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import SecurityRegionChart from './SecurityRegionChart';
 import LoadControl from './LoadControl';
 import SingleLineDiagram from './SingleLineDiagram';
-import BranchControl from './BranchControl';
-import GeneratorControl from './GeneratorControl';
-import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 
 interface LoadData {
   bus5: { p: number };
   bus7: { p: number };
   bus9: { p: number };
-}
-
-interface BranchRatings {
-  [key: number]: number;  // Maps branch number to rating
-}
-
-interface GeneratorLimits {
-  g2: { min: number; max: number; };
-  g3: { min: number; max: number; };
-}
-
-interface NewBranch {
-  fromBus: number;
-  toBus: number;
-  templateBranch: number;
 }
 
 interface Coefficients {
@@ -63,14 +45,12 @@ interface SecurityRegionData {
   limits: Limits;
   constraints: Constraint[];
   feasibleRegion: Array<{x: number, y: number}>;
-  loadData: LoadData;
 }
 
 export function SecurityRegion() {
-  // Existing state variables
   const [data, setData] = useState<SecurityRegionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
+  const [loading, setLoading] = useState(true);       // Keep this - used for initial loading
+  const [calculating, setCalculating] = useState(false); // Add this - used for calculation transitions
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [serverStarting, setServerStarting] = useState(true);
@@ -80,66 +60,10 @@ export function SecurityRegion() {
     bus9: { p: 125 }
   });
 
-  // New state variables for enhanced controls
-  const [branchRatings, setBranchRatings] = useState<BranchRatings>({
-    1: 180, 2: 180, 3: 180, 4: 180, 5: 180,
-    6: 180, 7: 180, 8: 180, 9: 180
-  });
-
-  const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>({
-    g2: { min: 0, max: 163 },
-    g3: { min: 0, max: 163 }
-  });
-
-  const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
-
-  // Add effect to monitor server starting state
+  // Add useEffect to monitor serverStarting state changes
   useEffect(() => {
     console.log('Server starting state changed:', serverStarting);
   }, [serverStarting]);
-
-  // Event handlers for new controls
-  const handleLoadChange = (newLoads: LoadData) => {
-    setCurrentLoads(newLoads);
-  };
-
-  const handleBranchRatingChange = (newRatings: BranchRatings) => {
-    setBranchRatings(newRatings);
-  };
-
-  const handleGeneratorLimitsChange = (newLimits: GeneratorLimits) => {
-    setGeneratorLimits(newLimits);
-  };
-
-  const handleAddBranch = (newBranch: NewBranch) => {
-    setAdditionalBranches(prev => [...prev, newBranch]);
-  };
-  // Initial fetch only once when component mounts
-  useEffect(() => {
-    const initializeData = async () => {
-      console.log('Initializing data...');
-      setServerStarting(true);  // Start with serverStarting true
-      
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        console.log('Server not ready, starting polling...');
-        const pollInterval = setInterval(async () => {
-          console.log('Polling server status...');
-          const ready = await checkServerStatus();
-          if (ready) {
-            console.log('Server is ready after polling');
-            clearInterval(pollInterval);
-            fetchData();
-          }
-        }, 2000);
-        return () => clearInterval(pollInterval);
-      }
-      console.log('Server ready on initial check');
-      fetchData();
-    };
-
-    initializeData();
-  }, []);
 
   const checkServerStatus = async () => {
     try {
@@ -180,9 +104,41 @@ export function SecurityRegion() {
     }
   };
 
+  // Initial fetch only once when component mounts
+  useEffect(() => {
+    const initializeData = async () => {
+      console.log('Initializing data...');
+      setServerStarting(true);  // Start with serverStarting true
+      
+      const isServerReady = await checkServerStatus();
+      if (!isServerReady) {
+        console.log('Server not ready, starting polling...');
+        const pollInterval = setInterval(async () => {
+          console.log('Polling server status...');
+          const ready = await checkServerStatus();
+          if (ready) {
+            console.log('Server is ready after polling');
+            clearInterval(pollInterval);
+            fetchData();
+          }
+        }, 2000);
+        return () => clearInterval(pollInterval);
+      }
+      console.log('Server ready on initial check');
+      fetchData();
+    };
+
+    initializeData();
+  }, []);
+
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
     fetchData();
+  };
+
+  const handleLoadChange = (newLoads: LoadData) => {
+    console.log('Loads updated:', newLoads);
+    setCurrentLoads(newLoads);
   };
 
   const handleCalculate = async () => {
@@ -210,7 +166,7 @@ export function SecurityRegion() {
         console.log('Server not ready during fetch attempt');
         return;
       }
-
+  
       setLoading(true);
       setCalculating(true); // Set calculating state
       setError(null);
@@ -218,27 +174,10 @@ export function SecurityRegion() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       console.log('Attempting to fetch from:', apiUrl);
       
-      // Updated query parameters to include all system modifications
       const queryParams = new URLSearchParams({
-        // Load parameters
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
-        bus9_p: currentLoads.bus9.p.toString(),
-        
-        // Branch ratings
-        ...Object.entries(branchRatings).reduce((acc, [branch, rating]) => ({
-          ...acc,
-          [`branch${branch}_rating`]: rating.toString()
-        }), {}),
-        
-        // Generator limits
-        g2_min: generatorLimits.g2.min.toString(),
-        g2_max: generatorLimits.g2.max.toString(),
-        g3_min: generatorLimits.g3.min.toString(),
-        g3_max: generatorLimits.g3.max.toString(),
-        
-        // Additional branches
-        new_branches: JSON.stringify(additionalBranches)
+        bus9_p: currentLoads.bus9.p.toString()
       });
       
       const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
@@ -255,6 +194,7 @@ export function SecurityRegion() {
       }
       
       const result = await response.json();
+      console.log('Full API Response:', result);
       
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
@@ -273,6 +213,7 @@ export function SecurityRegion() {
       setLoading(false);
     }
   };
+
   // Check serverStarting first, before any other conditions
   if (serverStarting) {
     console.log('Rendering server starting message');
@@ -324,30 +265,13 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
-      <SingleLineDiagram 
-        loads={currentLoads} 
-        additionalBranches={additionalBranches}
+      <SingleLineDiagram loads={currentLoads} />
+      
+      <LoadControl 
+        onLoadChange={handleLoadChange} 
+        onCalculate={handleCalculate}
       />
       
-      <div className="space-y-6">
-        <LoadControl 
-          onLoadChange={handleLoadChange} 
-          onCalculate={handleCalculate}
-        />
-        
-        <BranchControl 
-          onBranchRatingChange={handleBranchRatingChange} 
-        />
-        
-        <GeneratorControl 
-          onGeneratorLimitsChange={handleGeneratorLimitsChange} 
-        />
-        
-        <NewBranchControl 
-          onAddBranch={handleAddBranch} 
-        />
-      </div>
-
       {(loading || calculating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
@@ -372,7 +296,7 @@ export function SecurityRegion() {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <Card>
           <CardHeader>
             <CardTitle>Security Region Statistics</CardTitle>
@@ -407,9 +331,7 @@ export function SecurityRegion() {
                   className="p-2 rounded border"
                   style={{ borderColor: constraint.color }}
                 >
-                  <p className="text-sm font-medium">
-                    {formatConstraintDescription(constraint.description)}
-                  </p>
+                  <p className="text-sm font-medium">{formatConstraintDescription(constraint.description)}</p>
                   <p className="text-xs text-gray-600">
                     {constraint.coefficients.a.toFixed(3)}·P_g2 + 
                     {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
@@ -422,7 +344,7 @@ export function SecurityRegion() {
         </Card>
       </div>
 
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>Security Region Visualization</CardTitle>
         </CardHeader>
