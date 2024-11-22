@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCcw, AlertTriangle, Coffee } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,21 +13,25 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
+// Define status type to make state management clearer
+type Status = 'idle' | 'loading' | 'error' | 'success';
+
 export function SecurityRegion() {
-  // Existing state variables
+  // Consolidated state
+  const [status, setStatus] = useState<Status>('idle');
   const [data, setData] = useState<SecurityRegionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [serverStarting, setServerStarting] = useState(true);
+  
+  // Cache API URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  // Initial state for controls
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
     bus9: { p: 125 }
   });
 
-  // New state variables for enhanced controls
   const [branchRatings, setBranchRatings] = useState<BranchRatings>({
     1: { rating: 180, reactance: 0.0576 },
     2: { rating: 180, reactance: 0.092 },
@@ -47,12 +51,65 @@ export function SecurityRegion() {
 
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
 
-  // Add effect to monitor server starting state
-  useEffect(() => {
-    console.log('Server starting state changed:', serverStarting);
-  }, [serverStarting]);
+  // Memoized fetch function
+  const fetchData = useCallback(async () => {
+    if (status === 'loading') return; // Prevent multiple concurrent requests
+    
+    try {
+      setStatus('loading');
+      
+      // Build query params
+      const queryParams = new URLSearchParams({
+        bus5_p: currentLoads.bus5.p.toString(),
+        bus7_p: currentLoads.bus7.p.toString(),
+        bus9_p: currentLoads.bus9.p.toString(),
+        ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
+          ...acc,
+          [`branch${branch}_rating`]: params.rating.toString()
+        }), {}),
+        g2_min: generatorLimits.g2.min.toString(),
+        g2_max: generatorLimits.g2.max.toString(),
+        g3_min: generatorLimits.g3.min.toString(),
+        g3_max: generatorLimits.g3.max.toString(),
+        new_branches: JSON.stringify(additionalBranches)
+      });
 
-  // Event handlers for new controls
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.statistics || !result.limits || !result.constraints) {
+        throw new Error('Invalid data format received from server');
+      }
+
+      setData(result);
+      setStatus('success');
+      setError(null);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setStatus('error');
+    }
+  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches]);
+
+  // Event handlers
   const handleLoadChange = (newLoads: LoadData) => {
     setCurrentLoads(newLoads);
   };
@@ -60,15 +117,8 @@ export function SecurityRegion() {
   const handleBranchRatingChange = (branchNum: number, value: number) => {
     setBranchRatings(prev => ({
       ...prev,
-      [branchNum]: {
-        ...prev[branchNum],
-        rating: value
-      }
+      [branchNum]: { ...prev[branchNum], rating: value }
     }));
-  };
-
-  const handleRemoveBranch = (index: number) => {
-    setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleGeneratorLimitsChange = (newLimits: GeneratorLimits) => {
@@ -78,213 +128,48 @@ export function SecurityRegion() {
   const handleAddBranch = (newBranch: NewBranch) => {
     setAdditionalBranches(prev => [...prev, newBranch]);
   };
-  // Initial fetch only once when component mounts
-  useEffect(() => {
-    const initializeData = async () => {
-      console.log('Initializing data...');
-      setServerStarting(true);  // Start with serverStarting true
-      
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        console.log('Server not ready, starting polling...');
-        const pollInterval = setInterval(async () => {
-          console.log('Polling server status...');
-          const ready = await checkServerStatus();
-          if (ready) {
-            console.log('Server is ready after polling');
-            clearInterval(pollInterval);
-            fetchData();
-          }
-        }, 2000);
-        return () => clearInterval(pollInterval);
-      }
-      console.log('Server ready on initial check');
-      fetchData();
-    };
 
-    initializeData();
+  const handleRemoveBranch = (index: number) => {
+    setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  const checkServerStatus = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      console.log('Checking server status at:', apiUrl);
-      
-      const response = await fetch(`${apiUrl}/health`, {
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Server response status:', response.status);
-      
-      if (response.ok) {
-        console.log('Server is ready');
-        setServerStarting(false);
-        return true;
-      } else {
-        console.log('Server is not ready, status:', response.status);
-        setServerStarting(true);
-        return false;
-      }
-    } catch (error: unknown) {
-      // Type guard for error object
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorName = error instanceof Error ? error.name : 'Unknown type';
-      
-      console.log('Server check error details:', {
-        error,
-        message: errorMessage,
-        type: errorName
-      });
-      setServerStarting(true);
-      return false;
-    }
-  };
-
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    fetchData();
-  };
-
-  const handleCalculate = async () => {
-    const isServerReady = await checkServerStatus();
-    if (!isServerReady) {
-      setServerStarting(true);
-      // Start polling until server is ready
-      const pollInterval = setInterval(async () => {
-        const ready = await checkServerStatus();
-        if (ready) {
-          clearInterval(pollInterval);
-          fetchData();
-        }
-      }, 2000);
-    } else {
-      fetchData();
-    }
-  };
-
-  const fetchData = async () => {
-    try {
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        setServerStarting(true);
-        console.log('Server not ready during fetch attempt');
-        return;
-      }
-
-      setLoading(true);
-      setCalculating(true); // Set calculating state
-      setError(null);
-      
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      console.log('Attempting to fetch from:', apiUrl);
-      
-      // Update the query params section in fetchData()
-      const queryParams = new URLSearchParams({
-        // Load parameters
-        bus5_p: currentLoads.bus5.p.toString(),
-        bus7_p: currentLoads.bus7.p.toString(),
-        bus9_p: currentLoads.bus9.p.toString(),
-        
-        // Branch ratings - update this part
-        ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
-          ...acc,
-          [`branch${branch}_rating`]: params.rating.toString()
-        }), {}),
-        
-        // Generator limits
-        g2_min: generatorLimits.g2.min.toString(),
-        g2_max: generatorLimits.g2.max.toString(),
-        g3_min: generatorLimits.g3.min.toString(),
-        g3_max: generatorLimits.g3.max.toString(),
-        
-        // Additional branches
-        new_branches: JSON.stringify(additionalBranches)
-      });
-      
-      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.statistics || !result.limits || !result.constraints) {
-        throw new Error('Invalid data format received from server');
-      }
-      
-      setData(result);
-      setServerStarting(false);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      const isServerStarting = await checkServerStatus();
-      if (!isServerStarting) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      }
-    } finally {
-      setCalculating(false); // Reset calculating state
-      setLoading(false);
-    }
-  };
-  // Check serverStarting first, before any other conditions. Test
-  if (serverStarting) {
-    console.log('Rendering server starting message');
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
-        <div className="text-center space-y-2">
-          <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
-          <p className="text-sm text-gray-600">
-            This may take up to 60 seconds as we wake up the free-tier server...
-          </p>
-          <p className="text-xs text-gray-500">
-            Free tier instance at {process.env.NEXT_PUBLIC_API_URL}
-          </p>
+  // Render functions
+  const renderLoading = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg">
+        <div className="flex items-center space-x-3">
+          <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
+          <span className="text-lg font-medium">Calculating Security Region...</span>
         </div>
-        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (loading && !data) {  // Only show loading on initial load
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+  const renderError = () => (
+    <div className="p-4">
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          {error}
+          <button 
+            onClick={fetchData}
+            className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
+          >
+            Retry
+          </button>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="p-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {error}
-            <button 
-              onClick={handleRetry}
-              className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
-            >
-              Retry
-            </button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (!data) return null;
+  // Main render
+  if (status === 'idle' || !data) return null;
+  if (status === 'error') return renderError();
 
   return (
     <div className="container mx-auto p-4">
@@ -297,52 +182,30 @@ export function SecurityRegion() {
       <div className="space-y-6">
         <LoadControl 
           onLoadChange={handleLoadChange} 
-          onCalculate={handleCalculate}
+          onCalculate={fetchData}
         />
 
         <GeneratorControl 
           onGeneratorLimitsChange={handleGeneratorLimitsChange}
-          onCalculate={handleCalculate} 
+          onCalculate={fetchData} 
         />
         
         <BranchControl 
           onBranchRatingChange={handleBranchRatingChange}
-          onCalculate={handleCalculate}
+          onCalculate={fetchData}
           branchRatings={branchRatings} 
         />
         
         <NewBranchControl 
           onAddBranch={handleAddBranch}
           onRemoveBranch={handleRemoveBranch}
-          onCalculate={handleCalculate}
+          onCalculate={fetchData}
           additionalBranches={additionalBranches} 
         />
       </div>
 
-      {(loading || calculating) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
-            <div className="flex items-center space-x-3">
-              <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="text-lg font-medium">
-                {calculating ? "Calculating Security Region..." : "Preparing Calculations..."}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">
-              {calculating ? (
-                <div className="space-y-2">
-                  <p>Running N-1 security analysis</p>
-                  <p>Computing feasible region</p>
-                  <p>Analyzing binding constraints</p>
-                </div>
-              ) : (
-                <p>Setting up computation parameters...</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      
+      {status === 'loading' && renderLoading()}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         <Card>
           <CardHeader>
