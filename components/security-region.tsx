@@ -341,7 +341,8 @@ export function SecurityRegion() {
         />
         
         <BranchControl 
-          onBranchRatingChange={handleBranchRatingChange} 
+          onBranchRatingChange={handleBranchRatingChange}
+          onCalculate={handleCalculate} 
         />
         
         <NewBranchControl 
