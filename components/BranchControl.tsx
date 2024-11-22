@@ -1,43 +1,36 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { lineNames } from './LineMapping';
 
-interface BranchControlProps {
-  onBranchRatingChange: (ratings: BranchRatings) => void;
-  onCalculate: () => void;
+interface BranchParameters {
+  rating: number;
+  reactance: number;
 }
 
 interface BranchRatings {
-  [key: number]: number;  // Maps branch number to rating
+  [key: number]: BranchParameters;
+}
+
+interface BranchControlProps {
+  onBranchRatingChange: (branchNum: number, value: number) => void;
+  onCalculate: () => void;
+  branchRatings: BranchRatings;
 }
 
 const BranchControl: React.FC<BranchControlProps> = ({ 
   onBranchRatingChange,
-  onCalculate 
+  onCalculate,
+  branchRatings 
 }) => {
-  const [ratings, setRatings] = useState<BranchRatings>({
-    1: 180, 2: 180, 3: 180, 4: 180, 5: 180,
-    6: 180, 7: 180, 8: 180, 9: 180
-  });
 
   const handleSliderChange = (branchNum: number, value: number) => {
-    const newRatings = {
-      ...ratings,
-      [branchNum]: value
-    };
-    setRatings(newRatings);
-    onBranchRatingChange(newRatings);
+    onBranchRatingChange(branchNum, value);
   };
 
   const handleInputChange = (branchNum: number, value: string) => {
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 500) {
-      const newRatings = {
-        ...ratings,
-        [branchNum]: numValue
-      };
-      setRatings(newRatings);
-      onBranchRatingChange(newRatings);
+      onBranchRatingChange(branchNum, numValue);
     }
   };
 
@@ -50,7 +43,7 @@ const BranchControl: React.FC<BranchControlProps> = ({
             onClick={onCalculate}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
-            Calculate Security Region
+            Calculate
           </button>
         </div>
       </CardHeader>
@@ -58,19 +51,24 @@ const BranchControl: React.FC<BranchControlProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(lineNames).map(([branchNum, name]) => (
             <div key={branchNum} className="space-y-2">
-              <h3 className="font-semibold text-sm">{name}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">{name}</h3>
+                <span className="text-xs text-gray-500">
+                  X = {branchRatings[parseInt(branchNum)].reactance.toFixed(4)} p.u.
+                </span>
+              </div>
               <div className="flex items-center space-x-4">
                 <input
                   type="range"
                   min="0"
                   max="500"
-                  value={ratings[parseInt(branchNum)]}
+                  value={branchRatings[parseInt(branchNum)].rating}
                   onChange={(e) => handleSliderChange(parseInt(branchNum), Number(e.target.value))}
                   className="flex-grow"
                 />
                 <input
                   type="number"
-                  value={ratings[parseInt(branchNum)]}
+                  value={branchRatings[parseInt(branchNum)].rating}
                   min="0"
                   max="500"
                   onChange={(e) => handleInputChange(parseInt(branchNum), e.target.value)}

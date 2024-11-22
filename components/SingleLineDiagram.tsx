@@ -14,14 +14,19 @@ interface NewBranch {
   templateBranch: number;
 }
 
+interface BranchParameters {
+  rating: number;
+  reactance: number;
+}
+
 interface BranchRatings {
-  [key: number]: number;
+  [key: number]: BranchParameters;
 }
 
 interface SingleLineDiagramProps {
   loads: LoadData;
   additionalBranches?: NewBranch[];
-  branchRatings: { [key: number]: number };  // Add this prop
+  branchRatings: BranchRatings;
 }
 
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ 
@@ -326,7 +331,8 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           </div>
 
           {/* Right side: Branch Parameters */}
-          <div className="lg:w-80">
+          {/* Right side: Branch Parameters */}
+          <div className="lg:w-96"> {/* Made wider to accommodate more columns */}
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-lg font-semibold mb-4">Branch Parameters</h3>
               <div className="overflow-x-auto">
@@ -335,20 +341,25 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
                     <tr className="border-b">
                       <th className="text-left p-2">Branch</th>
                       <th className="text-right p-2">Rating (MVA)</th>
+                      <th className="text-right p-2">X (p.u.) Zb=529 ohm</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(lineNames).map(([branchNum, name]) => (
                       <tr key={branchNum} className="border-b hover:bg-gray-50">
                         <td className="p-2">{name}</td>
-                        <td className="text-right p-2">{branchRatings[parseInt(branchNum)]}</td>
+                        <td className="text-right p-2">{branchRatings[parseInt(branchNum)].rating}</td>
+                        <td className="text-right p-2">{branchRatings[parseInt(branchNum)].reactance.toFixed(4)}</td>
                       </tr>
                     ))}
                     {additionalBranches.map((branch, index) => (
                       <tr key={`new-${index}`} className="border-b hover:bg-gray-50 text-purple-600">
                         <td className="p-2">Bus {branch.fromBus} - Bus {branch.toBus}</td>
                         <td className="text-right p-2">
-                          {branchRatings[branch.templateBranch]}
+                          {branchRatings[branch.templateBranch].rating}
+                        </td>
+                        <td className="text-right p-2">
+                          {branchRatings[branch.templateBranch].reactance.toFixed(4)}
                         </td>
                       </tr>
                     ))}

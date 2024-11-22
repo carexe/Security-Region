@@ -82,8 +82,15 @@ export function SecurityRegion() {
 
   // New state variables for enhanced controls
   const [branchRatings, setBranchRatings] = useState<BranchRatings>({
-    1: 180, 2: 180, 3: 180, 4: 180, 5: 180,
-    6: 180, 7: 180, 8: 180, 9: 180
+    1: { rating: 180, reactance: 0.0576 },
+    2: { rating: 180, reactance: 0.092 },
+    3: { rating: 180, reactance: 0.17 },
+    4: { rating: 180, reactance: 0.0586 },
+    5: { rating: 180, reactance: 0.1008 },
+    6: { rating: 180, reactance: 0.072 },
+    7: { rating: 180, reactance: 0.0625 },
+    8: { rating: 180, reactance: 0.161 },
+    9: { rating: 180, reactance: 0.085 }
   });
 
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>({
@@ -103,8 +110,14 @@ export function SecurityRegion() {
     setCurrentLoads(newLoads);
   };
 
-  const handleBranchRatingChange = (newRatings: BranchRatings) => {
-    setBranchRatings(newRatings);
+  const handleBranchRatingChange = (branchNum: number, value: number) => {
+    setBranchRatings(prev => ({
+      ...prev,
+      [branchNum]: {
+        ...prev[branchNum],
+        rating: value
+      }
+    }));
   };
 
   const handleGeneratorLimitsChange = (newLimits: GeneratorLimits) => {
@@ -343,7 +356,8 @@ export function SecurityRegion() {
         
         <BranchControl 
           onBranchRatingChange={handleBranchRatingChange}
-          onCalculate={handleCalculate} 
+          onCalculate={handleCalculate}
+          branchRatings={branchRatings} 
         />
         
         <NewBranchControl 
