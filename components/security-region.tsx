@@ -11,6 +11,8 @@ import BranchControl from './BranchControl';
 import GeneratorControl from './GeneratorControl';
 import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
+import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
+
 
 interface LoadData {
   bus5: { p: number };
