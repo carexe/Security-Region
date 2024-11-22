@@ -5,8 +5,13 @@ export interface LoadData {
   bus9: { p: number };
 }
 
+export interface BranchParameters {
+  rating: number;
+  reactance: number;
+}
+
 export interface BranchRatings {
-  [key: number]: number;  // Maps branch number to rating
+  [key: number]: BranchParameters;
 }
 
 export interface GeneratorLimits {

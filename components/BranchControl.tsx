@@ -1,15 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { lineNames } from './LineMapping';
-
-interface BranchParameters {
-  rating: number;
-  reactance: number;
-}
-
-interface BranchRatings {
-  [key: number]: BranchParameters;
-}
+import { BranchRatings } from './types';
 
 interface BranchControlProps {
   onBranchRatingChange: (branchNum: number, value: number) => void;
@@ -22,7 +14,6 @@ const BranchControl: React.FC<BranchControlProps> = ({
   onCalculate,
   branchRatings 
 }) => {
-
   const handleSliderChange = (branchNum: number, value: number) => {
     onBranchRatingChange(branchNum, value);
   };
@@ -43,7 +34,7 @@ const BranchControl: React.FC<BranchControlProps> = ({
             onClick={onCalculate}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
-            Calculate
+            Calculate Security Region
           </button>
         </div>
       </CardHeader>
