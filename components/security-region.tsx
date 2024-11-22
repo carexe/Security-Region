@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCcw, AlertTriangle, Coffee } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,13 +14,14 @@ import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
 export function SecurityRegion() {
-  // State management
+  // Consolidated state
   const [data, setData] = useState<SecurityRegionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverStarting, setServerStarting] = useState(true);
-  
-  // Control states
+
+  // Initial states
   const [currentLoads, setCurrentLoads] = useState<LoadData>({
     bus5: { p: 90 },
     bus7: { p: 100 },
@@ -46,13 +47,18 @@ export function SecurityRegion() {
 
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
 
-  // API URL
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-  // Server status check
-  const checkServerStatus = useCallback(async () => {
+  // Check server status
+  const checkServerStatus = async () => {
     try {
-      const response = await fetch(`${apiUrl}/health`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/health`, {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (response.ok) {
         setServerStarting(false);
         return true;
@@ -63,14 +69,22 @@ export function SecurityRegion() {
       setServerStarting(true);
       return false;
     }
-  }, [apiUrl]);
+  };
 
-  // Data fetching
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      const isServerReady = await checkServerStatus();
+      if (!isServerReady) {
+        setTimeout(fetchData, 3000);
+        return;
+      }
 
+      setLoading(true);
+      setCalculating(true);
+      setError(null);
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
       const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
@@ -86,41 +100,43 @@ export function SecurityRegion() {
         new_branches: JSON.stringify(additionalBranches)
       });
 
-      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`);
-      
-      if (!response.ok) {
-        if (response.status === 502) {
-          setServerStarting(true);
-          throw new Error('Server is starting up. Please wait...');
+      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-        throw new Error(`Server error: ${response.status}`);
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      
+
       if (!result.statistics || !result.limits || !result.constraints) {
         throw new Error('Invalid data format received from server');
       }
 
       setData(result);
       setServerStarting(false);
-      setError(null);
     } catch (err) {
+      console.error('Fetch error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
       
-      // If server is starting, retry after delay
-      if (errorMessage.includes('Server is starting up')) {
-        setTimeout(() => {
-          fetchData();
-        }, 3000);
+      // Check if server is starting and retry
+      if (errorMessage.includes('502')) {
+        setServerStarting(true);
+        setTimeout(fetchData, 3000);
       }
     } finally {
+      setCalculating(false);
       setLoading(false);
     }
-  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches]);
+  };
 
-  // Initial data fetch
+  // Initial load
   useEffect(() => {
     fetchData();
   }, []);
@@ -149,7 +165,6 @@ export function SecurityRegion() {
     setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Render loading state
   if (serverStarting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
@@ -226,19 +241,19 @@ export function SecurityRegion() {
         />
       </div>
 
-      {loading && (
+      {(loading || calculating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center space-x-3">
               <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
               <span className="text-lg font-medium">
-                Calculating Security Region...
+                {calculating ? "Calculating Security Region..." : "Loading..."}
               </span>
             </div>
           </div>
         </div>
       )}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         <Card>
           <CardHeader>
