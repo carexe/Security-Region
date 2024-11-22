@@ -13,61 +13,6 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
-
-interface LoadData {
-  bus5: { p: number };
-  bus7: { p: number };
-  bus9: { p: number };
-}
-
-interface BranchRatings {
-  [key: number]: number;  // Maps branch number to rating
-}
-
-interface GeneratorLimits {
-  g2: { min: number; max: number; };
-  g3: { min: number; max: number; };
-}
-
-interface NewBranch {
-  fromBus: number;
-  toBus: number;
-  templateBranch: number;
-}
-
-interface Coefficients {
-  a: number;
-  b: number;
-  c: number;
-}
-
-interface Constraint {
-  coefficients: Coefficients;
-  description: string;
-  color: string;
-  style: string;
-}
-
-interface Statistics {
-  feasiblePercentage: number;
-  bindingConstraints: number;
-  totalConstraints: number;
-  feasibleArea: number;
-}
-
-interface Limits {
-  g2_max: number;
-  g3_max: number;
-}
-
-interface SecurityRegionData {
-  statistics: Statistics;
-  limits: Limits;
-  constraints: Constraint[];
-  feasibleRegion: Array<{x: number, y: number}>;
-  loadData: LoadData;
-}
-
 export function SecurityRegion() {
   // Existing state variables
   const [data, setData] = useState<SecurityRegionData | null>(null);
