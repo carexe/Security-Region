@@ -86,31 +86,42 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   );
 
   // Branch parameters table component
+// Branch parameters table component
   const BranchParametersTable = () => (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b">
             <th className="text-left p-2">Branch</th>
-            <th className="text-right p-2">Rating (MVA)</th>
+            <th className="text-right p-2">Details</th>
           </tr>
         </thead>
         <tbody>
+          {/* Iterate over lineNames */}
           {Object.entries(lineNames).map(([branchNum, name]) => (
             <tr key={branchNum} className="border-b hover:bg-gray-50">
               <td className="p-2">{name}</td>
-              {/* From ChatGPT */}
               <td className="text-right p-2">
-                {`Rating: ${branchRatings[parseInt(branchNum)]?.rating || 'N/A'}, Reactance: ${branchRatings[parseInt(branchNum)]?.reactance || 'N/A'}`}
+                {branchRatings[parseInt(branchNum)] 
+                  ? `Rating: ${branchRatings[parseInt(branchNum)]?.rating || 'N/A'}, Reactance: ${branchRatings[parseInt(branchNum)]?.reactance || 'N/A'}`
+                  : 'No data available'}
               </td>
             </tr>
           ))}
+
+          {/* Iterate over additionalBranches */}
           {additionalBranches.map((branch, index) => (
-            <tr key={`new-${index}`} className="border-b hover:bg-gray-50 text-purple-600">
-              <td className="p-2">Bus {branch.fromBus} - Bus {branch.toBus}</td>
-              {/* From ChatGPT */}
+            <tr
+              key={`new-${index}`}
+              className="border-b hover:bg-gray-50 text-purple-600"
+            >
+              <td className="p-2">
+                Bus {branch.fromBus} - Bus {branch.toBus}
+              </td>
               <td className="text-right p-2">
-                {`Rating: ${branchRatings[branch.templateBranch]?.rating || 'N/A'}, Reactance: ${branchRatings[branch.templateBranch]?.reactance || 'N/A'}`}
+                {branchRatings[branch.templateBranch] 
+                  ? `Rating: ${branchRatings[branch.templateBranch]?.rating || 'N/A'}, Reactance: ${branchRatings[branch.templateBranch]?.reactance || 'N/A'}`
+                  : 'No data available'}
               </td>
             </tr>
           ))}
