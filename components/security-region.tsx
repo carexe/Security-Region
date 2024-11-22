@@ -334,13 +334,13 @@ export function SecurityRegion() {
           onLoadChange={handleLoadChange} 
           onCalculate={handleCalculate}
         />
+
+        <GeneratorControl 
+          onGeneratorLimitsChange={handleGeneratorLimitsChange} 
+        />
         
         <BranchControl 
           onBranchRatingChange={handleBranchRatingChange} 
-        />
-        
-        <GeneratorControl 
-          onGeneratorLimitsChange={handleGeneratorLimitsChange} 
         />
         
         <NewBranchControl 
