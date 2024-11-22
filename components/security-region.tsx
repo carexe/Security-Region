@@ -67,6 +67,10 @@ export function SecurityRegion() {
     }));
   };
 
+  const handleRemoveBranch = (index: number) => {
+    setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleGeneratorLimitsChange = (newLimits: GeneratorLimits) => {
     setGeneratorLimits(newLimits);
   };
@@ -309,10 +313,7 @@ export function SecurityRegion() {
         
         <NewBranchControl 
           onAddBranch={handleAddBranch}
-          onRemoveBranch={(index) => {
-            setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
-            handleCalculate(); // Optionally recalculate after removing
-          }}
+          onRemoveBranch={handleRemoveBranch}
           onCalculate={handleCalculate}
           additionalBranches={additionalBranches} 
         />
