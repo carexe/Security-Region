@@ -336,7 +336,8 @@ export function SecurityRegion() {
         />
 
         <GeneratorControl 
-          onGeneratorLimitsChange={handleGeneratorLimitsChange} 
+          onGeneratorLimitsChange={handleGeneratorLimitsChange}
+          onCalculate={handleCalculate} 
         />
         
         <BranchControl 
@@ -344,7 +345,13 @@ export function SecurityRegion() {
         />
         
         <NewBranchControl 
-          onAddBranch={handleAddBranch} 
+          onAddBranch={handleAddBranch}
+          onRemoveBranch={(index) => {
+            setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
+            handleCalculate(); // Optionally recalculate after removing
+          }}
+          onCalculate={handleCalculate}
+          additionalBranches={additionalBranches} 
         />
       </div>
 

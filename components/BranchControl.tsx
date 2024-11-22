@@ -2,15 +2,19 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { lineNames } from './LineMapping';
 
+interface BranchControlProps {
+  onBranchRatingChange: (ratings: BranchRatings) => void;
+  onCalculate: () => void;
+}
+
 interface BranchRatings {
   [key: number]: number;  // Maps branch number to rating
 }
 
-interface BranchControlProps {
-  onBranchRatingChange: (ratings: BranchRatings) => void;
-}
-
-const BranchControl: React.FC<BranchControlProps> = ({ onBranchRatingChange }) => {
+const BranchControl: React.FC<BranchControlProps> = ({ 
+  onBranchRatingChange,
+  onCalculate 
+}) => {
   const [ratings, setRatings] = useState<BranchRatings>({
     1: 180, 2: 180, 3: 180, 4: 180, 5: 180,
     6: 180, 7: 180, 8: 180, 9: 180
@@ -40,7 +44,15 @@ const BranchControl: React.FC<BranchControlProps> = ({ onBranchRatingChange }) =
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Branch Ratings Control</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle>Branch Ratings Control</CardTitle>
+          <button 
+            onClick={onCalculate}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+          >
+            Calculate
+          </button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -8,9 +8,13 @@ interface GeneratorLimits {
 
 interface GeneratorControlProps {
   onGeneratorLimitsChange: (limits: GeneratorLimits) => void;
+  onCalculate: () => void;
 }
 
-const GeneratorControl: React.FC<GeneratorControlProps> = ({ onGeneratorLimitsChange }) => {
+const GeneratorControl: React.FC<GeneratorControlProps> = ({ 
+  onGeneratorLimitsChange,
+  onCalculate 
+}) => {
   const [limits, setLimits] = useState<GeneratorLimits>({
     g2: { min: 0, max: 163 },
     g3: { min: 0, max: 163 }
@@ -65,7 +69,15 @@ const GeneratorControl: React.FC<GeneratorControlProps> = ({ onGeneratorLimitsCh
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Generator Limits Control</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle>Generator Limits Control</CardTitle>
+          <button 
+            onClick={onCalculate}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+          >
+            Calculate
+          </button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
