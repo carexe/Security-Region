@@ -1,27 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { lineNames } from './LineMapping';
-
-interface LoadData {
-  bus5: { p: number };
-  bus7: { p: number };
-  bus9: { p: number };
-}
-
-interface NewBranch {
-  fromBus: number;
-  toBus: number;
-  templateBranch: number;
-}
-
-interface BranchParameters {
-  rating: number;
-  reactance: number;
-}
-
-interface BranchRatings {
-  [key: number]: BranchParameters;
-}
+import { LoadData, NewBranch, BranchRatings } from './types';
 
 interface SingleLineDiagramProps {
   loads: LoadData;
@@ -34,7 +14,6 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   additionalBranches = [], 
   branchRatings
 }) => {
-  // Bus positions with increased spacing
   const busPositions: Record<number, { x: number; y: number }> = {
     1: { x: 200, y: 250 },
     2: { x: 800, y: 250 },
@@ -47,9 +26,8 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     9: { x: 500, y: 250 }
   };
 
-  const BUS_RADIUS = 20;  // Radius of bus circles
+  const BUS_RADIUS = 20;
 
-  // SVG Generator Symbol definitions
   const GeneratorSymbol: React.FC<{ 
     withLabel: string; 
     isSlack?: boolean;
@@ -57,7 +35,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   }> = ({ 
     withLabel, 
     isSlack = false,
-    labelOffset = { x: 0, y: -30 }  // Default offset
+    labelOffset = { x: 0, y: -30 }
   }) => (
     <g>
       <circle r="15" fill="none" stroke="red" strokeWidth="2"/>
@@ -85,53 +63,6 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     </g>
   );
 
-  // Branch parameters table component
-// Branch parameters table component
-  const BranchParametersTable = () => (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="border-b">
-            <th className="text-left p-2">Branch</th>
-            <th className="text-right p-2">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* Iterate over lineNames */}
-          {Object.entries(lineNames).map(([branchNum, name]) => (
-            <tr key={branchNum} className="border-b hover:bg-gray-50">
-              <td className="p-2">{name}</td>
-              <td className="text-right p-2">
-                {branchRatings[parseInt(branchNum)] 
-                  ? `Rating: ${branchRatings[parseInt(branchNum)]?.rating || 'N/A'}, Reactance: ${branchRatings[parseInt(branchNum)]?.reactance || 'N/A'}`
-                  : 'No data available'}
-              </td>
-            </tr>
-          ))}
-
-          {/* Iterate over additionalBranches */}
-          {additionalBranches.map((branch, index) => (
-            <tr
-              key={`new-${index}`}
-              className="border-b hover:bg-gray-50 text-purple-600"
-            >
-              <td className="p-2">
-                Bus {branch.fromBus} - Bus {branch.toBus}
-              </td>
-              <td className="text-right p-2">
-                {branchRatings[branch.templateBranch] 
-                  ? `Rating: ${branchRatings[branch.templateBranch]?.rating || 'N/A'}, Reactance: ${branchRatings[branch.templateBranch]?.reactance || 'N/A'}`
-                  : 'No data available'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-  
-  
-  // SVG Load Symbol definition (vertical arrow starting from bus circumference)
   const LoadSymbol: React.FC<{ 
     busX: number; 
     busY: number; 
@@ -153,44 +84,6 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           fontSize="12"
         >
           {power} MW
-        </text>
-      </g>
-    );
-  };
-
-  // Function to render transmission lines
-  const renderLine = (
-    fromBus: number, 
-    toBus: number, 
-    index: number,
-    isNewLine: boolean = false
-  ) => {
-    const from = busPositions[fromBus];
-    const to = busPositions[toBus];
-    
-    // Calculate midpoint for label
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-    
-    return (
-      <g key={`line-${fromBus}-${toBus}`}>
-        <path 
-          d={`M ${from.x},${from.y} L ${to.x},${to.y}`}
-          stroke={isNewLine ? "purple" : "black"} 
-          strokeWidth="2"
-          strokeDasharray={isNewLine ? "5,5" : undefined}
-        />
-        <text 
-          x={midX} 
-          y={midY - 10} 
-          textAnchor="middle" 
-          className="text-xs"
-          fill={isNewLine ? "purple" : "black"}
-        >
-          {isNewLine ? 
-            `[N${index}] New Line ${fromBus}-${toBus}` : 
-            `[${index}] Line ${fromBus}-${toBus}`
-          }
         </text>
       </g>
     );

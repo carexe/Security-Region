@@ -231,17 +231,17 @@ export function SecurityRegion() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       console.log('Attempting to fetch from:', apiUrl);
       
-      // Updated query parameters to include all system modifications
+      // Update the query params section in fetchData()
       const queryParams = new URLSearchParams({
         // Load parameters
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
         bus9_p: currentLoads.bus9.p.toString(),
         
-        // Branch ratings
-        ...Object.entries(branchRatings).reduce((acc, [branch, rating]) => ({
+        // Branch ratings - update this part
+        ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
           ...acc,
-          [`branch${branch}_rating`]: rating.toString()
+          [`branch${branch}_rating`]: params.rating.toString()
         }), {}),
         
         // Generator limits
