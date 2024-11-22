@@ -14,6 +14,10 @@ interface NewBranch {
   templateBranch: number;
 }
 
+interface BranchRatings {
+  [key: number]: number;
+}
+
 interface SingleLineDiagramProps {
   loads: LoadData;
   additionalBranches?: NewBranch[];
@@ -22,7 +26,7 @@ interface SingleLineDiagramProps {
 
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({ 
   loads, 
-  additionalBranches = [] 
+  additionalBranches = [], 
   branchRatings
 }) => {
   // Bus positions with increased spacing
