@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCcw, AlertTriangle, Coffee } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
-// Initial state values
+// Constants defined outside component
 const INITIAL_LOADS: LoadData = {
   bus5: { p: 90 },
   bus7: { p: 100 },
@@ -37,46 +37,61 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
   g3: { min: 0, max: 163 }
 };
 
-export function SecurityRegion() {
-  // State management
+const POLL_INTERVAL = 2000;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_HEADERS = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
+} as const;
+
+// Component with explicit display name for ESLint
+export const SecurityRegion: React.FC = () => {
+  // Core state management
   const [data, setData] = useState<SecurityRegionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [serverStarting, setServerStarting] = useState(true);
+  const [loadingState, setLoadingState] = useState({
+    isLoading: true,
+    isCalculating: false,
+    error: null as string | null,
+    isServerStarting: true
+  });
   const [currentLoads, setCurrentLoads] = useState<LoadData>(INITIAL_LOADS);
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
   const [shouldFetch, setShouldFetch] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  // Refs for cleanup and mounted state
+  const mountedRef = useRef(true);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Server status check
+  const checkServerStatus = useCallback(async (): Promise<boolean> => {
+    if (!mountedRef.current) return false;
 
-  const checkServerStatus = useCallback(async () => {
     try {
-      const response = await fetch(`${apiUrl}/health`, {
+      const response = await fetch(`${API_URL}/health`, {
         mode: 'cors',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+        headers: API_HEADERS
       });
       
       const isReady = response.ok;
-      setServerStarting(!isReady);
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isServerStarting: !isReady }));
+      }
       return isReady;
     } catch (error) {
-      setServerStarting(true);
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isServerStarting: true }));
+      }
       return false;
     }
-  }, [apiUrl]);
+  }, []);
 
+  // Data fetching
   const fetchData = useCallback(async () => {
-    if (calculating || !shouldFetch) return;
+    if (!mountedRef.current || loadingState.isCalculating || !shouldFetch) return;
 
     try {
-      setCalculating(true);
-      setError(null);
+      setLoadingState(prev => ({ ...prev, isCalculating: true, error: null }));
       
       const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
@@ -92,13 +107,10 @@ export function SecurityRegion() {
         g3_max: generatorLimits.g3.max.toString(),
         new_branches: JSON.stringify(additionalBranches)
       });
-      
-      const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
+
+      const response = await fetch(`${API_URL}/api/security-region?${queryParams}`, {
         mode: 'cors',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+        headers: API_HEADERS
       });
       
       if (!response.ok) {
@@ -111,58 +123,75 @@ export function SecurityRegion() {
         throw new Error('Invalid data format received from server');
       }
       
-      setData(result);
-      setServerStarting(false);
+      if (mountedRef.current) {
+        setData(result);
+        setLoadingState(prev => ({ 
+          ...prev, 
+          isServerStarting: false,
+          isLoading: false
+        }));
+      }
     } catch (err) {
-      if (!serverStarting) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      if (mountedRef.current && !loadingState.isServerStarting) {
+        setLoadingState(prev => ({ 
+          ...prev, 
+          error: err instanceof Error ? err.message : 'An unknown error occurred'
+        }));
       }
     } finally {
-      setCalculating(false);
-      setShouldFetch(false);
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isCalculating: false }));
+        setShouldFetch(false);
+      }
     }
-  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting, shouldFetch]);
+  }, [currentLoads, branchRatings, generatorLimits, additionalBranches, loadingState.isCalculating, loadingState.isServerStarting, shouldFetch]);
 
-  // Initial setup
+  // Cleanup effect
   useEffect(() => {
-    let mounted = true;
-    let pollInterval: NodeJS.Timeout | null = null;
-    
+    return () => {
+      mountedRef.current = false;
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Server status polling effect
+  useEffect(() => {
     const initializeData = async () => {
-      if (!mounted) return;
+      if (!mountedRef.current) return;
       
       const isServerReady = await checkServerStatus();
       
-      if (!isServerReady && mounted) {
-        pollInterval = setInterval(async () => {
-          if (!mounted) return;
+      if (!isServerReady && mountedRef.current) {
+        pollIntervalRef.current = setInterval(async () => {
+          if (!mountedRef.current) return;
           
           const ready = await checkServerStatus();
-          if (ready && mounted) {
-            if (pollInterval) clearInterval(pollInterval);
+          if (ready && mountedRef.current) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
             setShouldFetch(true);
           }
-        }, 2000);
-      } else if (mounted) {
+        }, POLL_INTERVAL);
+      } else if (mountedRef.current) {
         setShouldFetch(true);
       }
     };
 
     initializeData();
-
-    return () => {
-      mounted = false;
-      if (pollInterval) clearInterval(pollInterval);
-    };
   }, [checkServerStatus]);
 
-  // Handle data fetching
+  // Data fetching effect
   useEffect(() => {
     if (shouldFetch) {
       fetchData();
     }
   }, [shouldFetch, fetchData]);
+
   // Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
@@ -190,9 +219,8 @@ export function SecurityRegion() {
   const handleCalculate = useCallback(() => {
     setShouldFetch(true);
   }, []);
-
-  // Render loading states
-  if (serverStarting) {
+  // Loading states
+  if (loadingState.isServerStarting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
@@ -202,7 +230,7 @@ export function SecurityRegion() {
             This may take up to 60 seconds as we wake up the free-tier server...
           </p>
           <p className="text-xs text-gray-500">
-            Free tier instance at {apiUrl}
+            Free tier instance at {API_URL}
           </p>
         </div>
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
@@ -210,7 +238,7 @@ export function SecurityRegion() {
     );
   }
 
-  if (loading && !data) {
+  if (loadingState.isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
@@ -218,13 +246,13 @@ export function SecurityRegion() {
     );
   }
 
-  if (error) {
+  if (loadingState.error) {
     return (
       <div className="p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {error}
+            {loadingState.error}
             <button 
               onClick={handleCalculate}
               className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
@@ -272,17 +300,17 @@ export function SecurityRegion() {
         />
       </div>
 
-      {(loading || calculating) && (
+      {(loadingState.isLoading || loadingState.isCalculating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
             <div className="flex items-center space-x-3">
               <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
               <span className="text-lg font-medium">
-                {calculating ? "Calculating Security Region..." : "Preparing Calculations..."}
+                {loadingState.isCalculating ? "Calculating Security Region..." : "Preparing Calculations..."}
               </span>
             </div>
             <div className="text-sm text-gray-600">
-              {calculating ? (
+              {loadingState.isCalculating ? (
                 <div className="space-y-2">
                   <p>Running N-1 security analysis</p>
                   <p>Computing feasible region</p>
@@ -356,4 +384,4 @@ export function SecurityRegion() {
       </Card>
     </div>
   );
-}
+};
