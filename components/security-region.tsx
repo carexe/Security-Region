@@ -38,7 +38,7 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
 };
 
 export function SecurityRegion() {
-  // State management with initial values
+  // State management
   const [data, setData] = useState<SecurityRegionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -48,11 +48,10 @@ export function SecurityRegion() {
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
+  const [shouldFetch, setShouldFetch] = useState(false);
 
-  // Memoized API URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-  // Optimized server status check
   const checkServerStatus = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/health`, {
@@ -72,15 +71,13 @@ export function SecurityRegion() {
     }
   }, [apiUrl]);
 
-  // Optimized data fetching
   const fetchData = useCallback(async () => {
-    if (calculating) return; // Prevent concurrent calculations
+    if (calculating || !shouldFetch) return;
 
     try {
       setCalculating(true);
       setError(null);
       
-      // Prepare query parameters
       const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
@@ -122,38 +119,51 @@ export function SecurityRegion() {
       }
     } finally {
       setCalculating(false);
+      setShouldFetch(false);
       setLoading(false);
     }
-  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting]);
+  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting, shouldFetch]);
 
-  // Initial setup with reduced polling
+  // Initial setup
   useEffect(() => {
+    let mounted = true;
     let pollInterval: NodeJS.Timeout | null = null;
     
     const initializeData = async () => {
+      if (!mounted) return;
+      
       const isServerReady = await checkServerStatus();
       
-      if (!isServerReady) {
+      if (!isServerReady && mounted) {
         pollInterval = setInterval(async () => {
+          if (!mounted) return;
+          
           const ready = await checkServerStatus();
-          if (ready) {
+          if (ready && mounted) {
             if (pollInterval) clearInterval(pollInterval);
-            fetchData();
+            setShouldFetch(true);
           }
-        }, 5000); // Reduced polling frequency to 5 seconds
-      } else {
-        fetchData();
+        }, 2000);
+      } else if (mounted) {
+        setShouldFetch(true);
       }
     };
 
     initializeData();
 
     return () => {
+      mounted = false;
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [checkServerStatus, fetchData]);
+  }, [checkServerStatus]);
 
-  // Event handlers
+  // Handle data fetching
+  useEffect(() => {
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [shouldFetch, fetchData]);
+// Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
   }, []);
@@ -177,12 +187,9 @@ export function SecurityRegion() {
     setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleCalculate = useCallback(async () => {
-    const isServerReady = await checkServerStatus();
-    if (isServerReady) {
-      fetchData();
-    }
-  }, [checkServerStatus, fetchData]);
+  const handleCalculate = useCallback(() => {
+    setShouldFetch(true);
+  }, []);
 
   // Render loading states
   if (serverStarting) {
