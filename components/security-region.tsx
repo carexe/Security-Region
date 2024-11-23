@@ -37,46 +37,6 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
   g3: { min: 0, max: 163 }
 };
 
-// Memoized components with display names
-const MemoizedSecurityChart = React.memo(SecurityRegionChart);
-MemoizedSecurityChart.displayName = 'MemoizedSecurityChart';
-
-const MemoizedSingleLineDiagram = React.memo(SingleLineDiagram);
-MemoizedSingleLineDiagram.displayName = 'MemoizedSingleLineDiagram';
-
-// Interface for constraint component props
-interface ConstraintItemProps {
-  constraint: {
-    color: string;
-    description: string;
-    coefficients: {
-      a: number;
-      b: number;
-      c: number;
-    }
-  }
-}
-
-// Constraint component with display name
-const ConstraintItem = React.memo(function ConstraintItem({ constraint }: ConstraintItemProps) {
-  return (
-    <div 
-      className="p-2 rounded border"
-      style={{ borderColor: constraint.color }}
-    >
-      <p className="text-sm font-medium">
-        {formatConstraintDescription(constraint.description)}
-      </p>
-      <p className="text-xs text-gray-600">
-        {constraint.coefficients.a.toFixed(3)}·P_g2 + 
-        {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
-        {constraint.coefficients.c.toFixed(3)}
-      </p>
-    </div>
-  );
-});
-ConstraintItem.displayName = 'ConstraintItem';
-
 export function SecurityRegion() {
   // State management
   const [data, setData] = useState<SecurityRegionData | null>(null);
@@ -88,7 +48,10 @@ export function SecurityRegion() {
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
+  const [shouldFetch, setShouldFetch] = useState(false);
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
   const checkServerStatus = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/health`, {
@@ -109,14 +72,13 @@ export function SecurityRegion() {
   }, [apiUrl]);
 
   const fetchData = useCallback(async () => {
-    if (calculating) return;
+    if (calculating || !shouldFetch) return;
 
     try {
       setCalculating(true);
       setError(null);
       
-      // Prepare query params
-      const params = {
+      const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
         bus9_p: currentLoads.bus9.p.toString(),
@@ -129,9 +91,7 @@ export function SecurityRegion() {
         g3_min: generatorLimits.g3.min.toString(),
         g3_max: generatorLimits.g3.max.toString(),
         new_branches: JSON.stringify(additionalBranches)
-      };
-
-      const queryParams = new URLSearchParams(params);
+      });
       
       const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
         mode: 'cors',
@@ -159,29 +119,33 @@ export function SecurityRegion() {
       }
     } finally {
       setCalculating(false);
+      setShouldFetch(false);
       setLoading(false);
     }
-  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting]);
+  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting, shouldFetch]);
 
-  // Initial setup with single health check
+  // Initial setup
   useEffect(() => {
     let mounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
     
     const initializeData = async () => {
       if (!mounted) return;
       
       const isServerReady = await checkServerStatus();
-      if (isServerReady && mounted) {
-        fetchData();
-      } else if (mounted) {
-        // Only check one more time after a delay if first check fails
-        setTimeout(async () => {
+      
+      if (!isServerReady && mounted) {
+        pollInterval = setInterval(async () => {
           if (!mounted) return;
+          
           const ready = await checkServerStatus();
           if (ready && mounted) {
-            fetchData();
+            if (pollInterval) clearInterval(pollInterval);
+            setShouldFetch(true);
           }
         }, 2000);
+      } else if (mounted) {
+        setShouldFetch(true);
       }
     };
 
@@ -189,10 +153,17 @@ export function SecurityRegion() {
 
     return () => {
       mounted = false;
+      if (pollInterval) clearInterval(pollInterval);
     };
-  }, [checkServerStatus, fetchData]);
+  }, [checkServerStatus]);
 
-  // Event handlers with useCallback
+  // Handle data fetching
+  useEffect(() => {
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [shouldFetch, fetchData]);
+  // Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
   }, []);
@@ -217,11 +188,10 @@ export function SecurityRegion() {
   }, []);
 
   const handleCalculate = useCallback(() => {
-    if (!calculating) {
-      fetchData();
-    }
-  }, [calculating, fetchData]);
+    setShouldFetch(true);
+  }, []);
 
+  // Render loading states
   if (serverStarting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
@@ -271,7 +241,7 @@ export function SecurityRegion() {
 
   return (
     <div className="container mx-auto p-4">
-      <MemoizedSingleLineDiagram 
+      <SingleLineDiagram 
         loads={currentLoads} 
         additionalBranches={additionalBranches}
         branchRatings={branchRatings}
@@ -356,7 +326,20 @@ export function SecurityRegion() {
           <CardContent>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {data.constraints.map((constraint, index) => (
-                <ConstraintItem key={index} constraint={constraint} />
+                <div 
+                  key={index}
+                  className="p-2 rounded border"
+                  style={{ borderColor: constraint.color }}
+                >
+                  <p className="text-sm font-medium">
+                    {formatConstraintDescription(constraint.description)}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {constraint.coefficients.a.toFixed(3)}·P_g2 + 
+                    {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
+                    {constraint.coefficients.c.toFixed(3)}
+                  </p>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -368,7 +351,7 @@ export function SecurityRegion() {
           <CardTitle>Security Region Visualization</CardTitle>
         </CardHeader>
         <CardContent>
-          <MemoizedSecurityChart data={data} limits={data.limits} />
+          <SecurityRegionChart data={data} limits={data.limits} />
         </CardContent>
       </Card>
     </div>
