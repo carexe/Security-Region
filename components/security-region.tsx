@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCcw, AlertTriangle, Coffee } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,103 +13,48 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
+// Initial state values
+const INITIAL_LOADS: LoadData = {
+  bus5: { p: 90 },
+  bus7: { p: 100 },
+  bus9: { p: 125 }
+};
+
+const INITIAL_BRANCH_RATINGS: BranchRatings = {
+  1: { rating: 180, reactance: 0.0576 },
+  2: { rating: 180, reactance: 0.092 },
+  3: { rating: 180, reactance: 0.17 },
+  4: { rating: 180, reactance: 0.0586 },
+  5: { rating: 180, reactance: 0.1008 },
+  6: { rating: 180, reactance: 0.072 },
+  7: { rating: 180, reactance: 0.0625 },
+  8: { rating: 180, reactance: 0.161 },
+  9: { rating: 180, reactance: 0.085 }
+};
+
+const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
+  g2: { min: 0, max: 163 },
+  g3: { min: 0, max: 163 }
+};
+
 export function SecurityRegion() {
-  // Existing state variables
+  // State management with initial values
   const [data, setData] = useState<SecurityRegionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [serverStarting, setServerStarting] = useState(true);
-  const [currentLoads, setCurrentLoads] = useState<LoadData>({
-    bus5: { p: 90 },
-    bus7: { p: 100 },
-    bus9: { p: 125 }
-  });
-
-  // New state variables for enhanced controls
-  const [branchRatings, setBranchRatings] = useState<BranchRatings>({
-    1: { rating: 180, reactance: 0.0576 },
-    2: { rating: 180, reactance: 0.092 },
-    3: { rating: 180, reactance: 0.17 },
-    4: { rating: 180, reactance: 0.0586 },
-    5: { rating: 180, reactance: 0.1008 },
-    6: { rating: 180, reactance: 0.072 },
-    7: { rating: 180, reactance: 0.0625 },
-    8: { rating: 180, reactance: 0.161 },
-    9: { rating: 180, reactance: 0.085 }
-  });
-
-  const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>({
-    g2: { min: 0, max: 163 },
-    g3: { min: 0, max: 163 }
-  });
-
+  const [currentLoads, setCurrentLoads] = useState<LoadData>(INITIAL_LOADS);
+  const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
+  const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
 
-  // Add effect to monitor server starting state
-  useEffect(() => {
-    console.log('Server starting state changed:', serverStarting);
-  }, [serverStarting]);
+  // Memoized API URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-  // Event handlers for new controls
-  const handleLoadChange = (newLoads: LoadData) => {
-    setCurrentLoads(newLoads);
-  };
-
-  const handleBranchRatingChange = (branchNum: number, value: number) => {
-    setBranchRatings(prev => ({
-      ...prev,
-      [branchNum]: {
-        ...prev[branchNum],
-        rating: value
-      }
-    }));
-  };
-
-  const handleRemoveBranch = (index: number) => {
-    setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleGeneratorLimitsChange = (newLimits: GeneratorLimits) => {
-    setGeneratorLimits(newLimits);
-  };
-
-  const handleAddBranch = (newBranch: NewBranch) => {
-    setAdditionalBranches(prev => [...prev, newBranch]);
-  };
-  // Initial fetch only once when component mounts
-  useEffect(() => {
-    const initializeData = async () => {
-      console.log('Initializing data...');
-      setServerStarting(true);  // Start with serverStarting true
-      
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        console.log('Server not ready, starting polling...');
-        const pollInterval = setInterval(async () => {
-          console.log('Polling server status...');
-          const ready = await checkServerStatus();
-          if (ready) {
-            console.log('Server is ready after polling');
-            clearInterval(pollInterval);
-            fetchData();
-          }
-        }, 2000);
-        return () => clearInterval(pollInterval);
-      }
-      console.log('Server ready on initial check');
-      fetchData();
-    };
-
-    initializeData();
-  }, []);
-
-  const checkServerStatus = async () => {
+  // Optimized server status check
+  const checkServerStatus = useCallback(async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      console.log('Checking server status at:', apiUrl);
-      
       const response = await fetch(`${apiUrl}/health`, {
         mode: 'cors',
         headers: {
@@ -118,95 +63,40 @@ export function SecurityRegion() {
         }
       });
       
-      console.log('Server response status:', response.status);
-      
-      if (response.ok) {
-        console.log('Server is ready');
-        setServerStarting(false);
-        return true;
-      } else {
-        console.log('Server is not ready, status:', response.status);
-        setServerStarting(true);
-        return false;
-      }
-    } catch (error: unknown) {
-      // Type guard for error object
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorName = error instanceof Error ? error.name : 'Unknown type';
-      
-      console.log('Server check error details:', {
-        error,
-        message: errorMessage,
-        type: errorName
-      });
+      const isReady = response.ok;
+      setServerStarting(!isReady);
+      return isReady;
+    } catch (error) {
       setServerStarting(true);
       return false;
     }
-  };
+  }, [apiUrl]);
 
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    fetchData();
-  };
+  // Optimized data fetching
+  const fetchData = useCallback(async () => {
+    if (calculating) return; // Prevent concurrent calculations
 
-  const handleCalculate = async () => {
-    const isServerReady = await checkServerStatus();
-    if (!isServerReady) {
-      setServerStarting(true);
-      // Start polling until server is ready
-      const pollInterval = setInterval(async () => {
-        const ready = await checkServerStatus();
-        if (ready) {
-          clearInterval(pollInterval);
-          fetchData();
-        }
-      }, 2000);
-    } else {
-      fetchData();
-    }
-  };
-
-  const fetchData = async () => {
     try {
-      const isServerReady = await checkServerStatus();
-      if (!isServerReady) {
-        setServerStarting(true);
-        console.log('Server not ready during fetch attempt');
-        return;
-      }
-
-      setLoading(true);
-      setCalculating(true); // Set calculating state
+      setCalculating(true);
       setError(null);
       
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      console.log('Attempting to fetch from:', apiUrl);
-      
-      // Update the query params section in fetchData()
+      // Prepare query parameters
       const queryParams = new URLSearchParams({
-        // Load parameters
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
         bus9_p: currentLoads.bus9.p.toString(),
-        
-        // Branch ratings - update this part
         ...Object.entries(branchRatings).reduce((acc, [branch, params]) => ({
           ...acc,
           [`branch${branch}_rating`]: params.rating.toString()
         }), {}),
-        
-        // Generator limits
         g2_min: generatorLimits.g2.min.toString(),
         g2_max: generatorLimits.g2.max.toString(),
         g3_min: generatorLimits.g3.min.toString(),
         g3_max: generatorLimits.g3.max.toString(),
-        
-        // Additional branches
         new_branches: JSON.stringify(additionalBranches)
       });
       
       const response = await fetch(`${apiUrl}/api/security-region?${queryParams}`, {
-        method: 'GET',
         mode: 'cors',
         headers: {
           'Accept': 'application/json',
@@ -227,19 +117,75 @@ export function SecurityRegion() {
       setData(result);
       setServerStarting(false);
     } catch (err) {
-      console.error('Fetch error:', err);
-      const isServerStarting = await checkServerStatus();
-      if (!isServerStarting) {
+      if (!serverStarting) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       }
     } finally {
-      setCalculating(false); // Reset calculating state
+      setCalculating(false);
       setLoading(false);
     }
-  };
-  // Check serverStarting first, before any other conditions. Test
+  }, [apiUrl, currentLoads, branchRatings, generatorLimits, additionalBranches, calculating, serverStarting]);
+
+  // Initial setup with reduced polling
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    const initializeData = async () => {
+      const isServerReady = await checkServerStatus();
+      
+      if (!isServerReady) {
+        pollInterval = setInterval(async () => {
+          const ready = await checkServerStatus();
+          if (ready) {
+            if (pollInterval) clearInterval(pollInterval);
+            fetchData();
+          }
+        }, 5000); // Reduced polling frequency to 5 seconds
+      } else {
+        fetchData();
+      }
+    };
+
+    initializeData();
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [checkServerStatus, fetchData]);
+
+  // Event handlers
+  const handleLoadChange = useCallback((newLoads: LoadData) => {
+    setCurrentLoads(newLoads);
+  }, []);
+
+  const handleBranchRatingChange = useCallback((branchNum: number, value: number) => {
+    setBranchRatings(prev => ({
+      ...prev,
+      [branchNum]: { ...prev[branchNum], rating: value }
+    }));
+  }, []);
+
+  const handleGeneratorLimitsChange = useCallback((newLimits: GeneratorLimits) => {
+    setGeneratorLimits(newLimits);
+  }, []);
+
+  const handleAddBranch = useCallback((newBranch: NewBranch) => {
+    setAdditionalBranches(prev => [...prev, newBranch]);
+  }, []);
+
+  const handleRemoveBranch = useCallback((index: number) => {
+    setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleCalculate = useCallback(async () => {
+    const isServerReady = await checkServerStatus();
+    if (isServerReady) {
+      fetchData();
+    }
+  }, [checkServerStatus, fetchData]);
+
+  // Render loading states
   if (serverStarting) {
-    console.log('Rendering server starting message');
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
@@ -249,7 +195,7 @@ export function SecurityRegion() {
             This may take up to 60 seconds as we wake up the free-tier server...
           </p>
           <p className="text-xs text-gray-500">
-            Free tier instance at {process.env.NEXT_PUBLIC_API_URL}
+            Free tier instance at {apiUrl}
           </p>
         </div>
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
@@ -257,7 +203,7 @@ export function SecurityRegion() {
     );
   }
 
-  if (loading && !data) {  // Only show loading on initial load
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
@@ -273,7 +219,7 @@ export function SecurityRegion() {
           <AlertDescription>
             {error}
             <button 
-              onClick={handleRetry}
+              onClick={handleCalculate}
               className="ml-4 px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
             >
               Retry
