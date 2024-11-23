@@ -66,29 +66,22 @@ export const SecurityRegion: React.FC = () => {
   // Server status check
   const checkServerStatus = useCallback(async (): Promise<boolean> => {
     if (!mountedRef.current) return false;
-  
+
     try {
-      // Set a short timeout for health check
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
-  
       const response = await fetch(`${API_URL}/health`, {
         mode: 'cors',
-        headers: API_HEADERS,
-        signal: controller.signal
+        // Remove content-type header as it's not needed for GET requests
+        headers: {
+          'Accept': 'application/json'
+        }
       });
       
-      clearTimeout(timeoutId);
       const isReady = response.ok;
-      
       if (mountedRef.current) {
         setLoadingState(prev => ({ ...prev, isServerStarting: !isReady }));
       }
       return isReady;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('Health check timed out');
-      }
       if (mountedRef.current) {
         setLoadingState(prev => ({ ...prev, isServerStarting: true }));
       }
