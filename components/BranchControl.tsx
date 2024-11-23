@@ -25,13 +25,19 @@ const BranchControl: React.FC<BranchControlProps> = ({
     }
   };
 
+  const handleCalculateClick = () => {
+    // No need to resend branchRatings as they're already in parent state
+    // and being passed as props. Just trigger calculation.
+    onCalculate();
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Branch Ratings Control</CardTitle>
           <button 
-            onClick={onCalculate}
+            onClick={handleCalculateClick}  {/* Changed to use new handler */}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
             Calculate Security Region

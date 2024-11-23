@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from 'lucide-react'; // Import trash icon
+import { Trash2 } from 'lucide-react';
 import { lineNames, LineNumberType } from './LineMapping';
 
 interface NewBranch {
   fromBus: number;
   toBus: number;
-  templateBranch: LineNumberType;  // Update this type
+  templateBranch: LineNumberType;
 }
 
 interface NewBranchControlProps {
@@ -38,6 +38,13 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
       return;
     }
     onAddBranch(newBranch);
+    // Don't automatically calculate - wait for Calculate button
+  };
+
+  const handleCalculateClick = () => {
+    // Since additionalBranches is passed as props and managed by parent,
+    // we can directly trigger calculation
+    onCalculate();
   };
 
   return (
@@ -46,7 +53,7 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
         <div className="flex justify-between items-center">
           <CardTitle>Network Topology Control</CardTitle>
           <button 
-            onClick={onCalculate}
+            onClick={handleCalculateClick}  {/* Changed to use new handler */}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
             Calculate Security Region
@@ -148,7 +155,10 @@ const NewBranchControl: React.FC<NewBranchControlProps> = ({
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => onRemoveBranch(index)}
+                      onClick={() => {
+                        onRemoveBranch(index);
+                        // Don't automatically calculate after removing - wait for Calculate button
+                      }}
                       className="ml-2"
                     >
                       <Trash2 className="h-4 w-4" />
