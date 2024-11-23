@@ -13,7 +13,7 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
-// Constants outside component
+// Constants defined outside component
 const INITIAL_LOADS: LoadData = {
   bus5: { p: 90 },
   bus7: { p: 100 },
@@ -37,34 +37,72 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
   g3: { min: 0, max: 163 }
 };
 
+const POLL_INTERVAL = 1000;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_HEADERS = {
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 } as const;
 
+// Component with explicit display name for ESLint
 export const SecurityRegion: React.FC = () => {
-  // State management
+  // Core state management
   const [data, setData] = useState<SecurityRegionData | null>(null);
   const [loadingState, setLoadingState] = useState({
     isLoading: true,
-    error: null as string | null
+    isCalculating: false,
+    error: null as string | null,
+    isServerStarting: true
   });
   const [currentLoads, setCurrentLoads] = useState<LoadData>(INITIAL_LOADS);
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
-  const [triggerCalculation, setTriggerCalculation] = useState(0);  // Add this state
+  const [shouldFetch, setShouldFetch] = useState(false);
 
-  // Mounted ref for cleanup
+  // Refs for cleanup and mounted state
   const mountedRef = useRef(true);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Server status check
+  const checkServerStatus = useCallback(async (): Promise<boolean> => {
+    if (!mountedRef.current) return false;
+  
+    try {
+      // Set a short timeout for health check
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
+  
+      const response = await fetch(`${API_URL}/health`, {
+        mode: 'cors',
+        headers: API_HEADERS,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      const isReady = response.ok;
+      
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isServerStarting: !isReady }));
+      }
+      return isReady;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Health check timed out');
+      }
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isServerStarting: true }));
+      }
+      return false;
+    }
+  }, []);
 
+  // Data fetching
   const fetchData = useCallback(async () => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || loadingState.isCalculating || !shouldFetch) return;
 
     try {
-      setLoadingState(prev => ({ ...prev, isLoading: true, error: null }));
-
+      setLoadingState(prev => ({ ...prev, isCalculating: true, error: null }));
+      
       const queryParams = new URLSearchParams({
         bus5_p: currentLoads.bus5.p.toString(),
         bus7_p: currentLoads.bus7.p.toString(),
@@ -84,37 +122,87 @@ export const SecurityRegion: React.FC = () => {
         mode: 'cors',
         headers: API_HEADERS
       });
-
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      
       const result = await response.json();
-
-      if (!mountedRef.current) return;
-
-      setData(result);
-      setLoadingState(prev => ({ ...prev, isLoading: false }));
+      
+      if (!result.statistics || !result.limits || !result.constraints) {
+        throw new Error('Invalid data format received from server');
+      }
+      
+      if (mountedRef.current) {
+        setData(result);
+        setLoadingState(prev => ({ 
+          ...prev, 
+          isServerStarting: false,
+          isLoading: false
+        }));
+      }
     } catch (err) {
-      if (!mountedRef.current) return;
-
-      setLoadingState(prev => ({
-        ...prev,
-        error: err instanceof Error ? err.message : 'An unknown error occurred',
-        isLoading: false
-      }));
+      if (mountedRef.current && !loadingState.isServerStarting) {
+        setLoadingState(prev => ({ 
+          ...prev, 
+          error: err instanceof Error ? err.message : 'An unknown error occurred'
+        }));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoadingState(prev => ({ ...prev, isCalculating: false }));
+        setShouldFetch(false);
+      }
     }
-  }, [currentLoads, branchRatings, generatorLimits, additionalBranches]);
+  }, [currentLoads, branchRatings, generatorLimits, additionalBranches, loadingState.isCalculating, loadingState.isServerStarting, shouldFetch]);
 
-  // Effect for initial load and recalculations
+  // Cleanup effect
   useEffect(() => {
-    fetchData();
     return () => {
       mountedRef.current = false;
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
     };
-  }, [fetchData, triggerCalculation]); // Include triggerCalculation
+  }, []);
 
-  // Event handlers
+  // Server status polling effect
+  useEffect(() => {
+    const initializeData = async () => {
+      if (!mountedRef.current) return;
+      
+      const isServerReady = await checkServerStatus();
+      
+      if (!isServerReady && mountedRef.current) {
+        pollIntervalRef.current = setInterval(async () => {
+          if (!mountedRef.current) return;
+          
+          const ready = await checkServerStatus();
+          if (ready && mountedRef.current) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setShouldFetch(true);
+          }
+        }, POLL_INTERVAL);
+      } else if (mountedRef.current) {
+        setShouldFetch(true);
+      }
+    };
+
+    initializeData();
+  }, [checkServerStatus]);
+
+  // Data fetching effect
+  useEffect(() => {
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [shouldFetch, fetchData]);
+
+    // Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
   }, []);
@@ -139,22 +227,35 @@ export const SecurityRegion: React.FC = () => {
   }, []);
 
   const handleCalculate = useCallback(() => {
-    setTriggerCalculation(prev => prev + 1); // This will trigger the useEffect
+    setShouldFetch(true);
   }, []);
-
-  // Loading state
-  if (loadingState.isLoading && !data) {
+  // Loading states
+  if (loadingState.isServerStarting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
-        <div className="text-center">
-          <p className="text-sm text-gray-600">Loading security region data...</p>
+        <Coffee className="w-12 h-12 animate-bounce text-amber-600" />
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold">Backend Server is Starting Up</h3>
+          <p className="text-sm text-gray-600">
+            This may take up to 60 seconds as we wake up the free-tier server...
+          </p>
+          <p className="text-xs text-gray-500">
+            Free tier instance at {API_URL}
+          </p>
         </div>
+        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
-  // Error state
+  if (loadingState.isLoading && !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCcw className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   if (loadingState.error) {
     return (
       <div className="p-4">
@@ -209,21 +310,25 @@ export const SecurityRegion: React.FC = () => {
         />
       </div>
 
-      {loadingState.isLoading && (
+      {(loadingState.isLoading || loadingState.isCalculating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
             <div className="flex items-center space-x-3">
               <RefreshCcw className="w-6 h-6 animate-spin text-blue-500" />
               <span className="text-lg font-medium">
-                Calculating Security Region...
+                {loadingState.isCalculating ? "Calculating Security Region..." : "Preparing Calculations..."}
               </span>
             </div>
             <div className="text-sm text-gray-600">
-              <div className="space-y-2">
-                <p>Running N-1 security analysis</p>
-                <p>Computing feasible region</p>
-                <p>Analyzing binding constraints</p>
-              </div>
+              {loadingState.isCalculating ? (
+                <div className="space-y-2">
+                  <p>Running N-1 security analysis</p>
+                  <p>Computing feasible region</p>
+                  <p>Analyzing binding constraints</p>
+                </div>
+              ) : (
+                <p>Setting up computation parameters...</p>
+              )}
             </div>
           </div>
         </div>
