@@ -67,7 +67,7 @@ const GeneratorControl: React.FC<GeneratorControlProps> = ({
   };
 
   const handleCalculateClick = () => {
-    // First ensure parent has latest limits
+    // Ensure parent has latest limits
     onGeneratorLimitsChange(limits);
     // Then trigger calculation
     onCalculate();
@@ -79,7 +79,7 @@ const GeneratorControl: React.FC<GeneratorControlProps> = ({
         <div className="flex justify-between items-center">
           <CardTitle>Generator Limits Control</CardTitle>
           <button 
-            onClick={handleCalculateClick}  {/* Changed to use new handler */}
+            onClick={handleCalculateClick}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
             Calculate Security Region

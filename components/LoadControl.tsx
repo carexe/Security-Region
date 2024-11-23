@@ -40,7 +40,7 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) 
   };
 
   const handleCalculateClick = () => {
-    // First ensure parent has latest load values
+    // Ensure parent has latest load values
     onLoadChange(loads);
     // Then trigger calculation
     onCalculate();
@@ -51,7 +51,7 @@ const LoadControl: React.FC<LoadControlProps> = ({ onLoadChange, onCalculate }) 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Load Control</h2>
         <button 
-          onClick={handleCalculateClick}  {/* Changed to use new handler */}
+          onClick={handleCalculateClick}
           className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
         >
           Calculate Security Region
