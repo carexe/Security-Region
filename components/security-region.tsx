@@ -13,7 +13,7 @@ import NewBranchControl from './NewBranchControl';
 import { formatConstraintDescription } from './LineMapping';
 import { LoadData, BranchRatings, GeneratorLimits, NewBranch, SecurityRegionData } from './types';
 
-// Constants outside component to prevent recreation
+// Constants outside component
 const INITIAL_LOADS: LoadData = {
   bus5: { p: 90 },
   bus7: { p: 100 },
@@ -54,6 +54,7 @@ export const SecurityRegion: React.FC = () => {
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
+  const [triggerCalculation, setTriggerCalculation] = useState(0);  // Add this state
 
   // Mounted ref for cleanup
   const mountedRef = useRef(true);
@@ -104,20 +105,18 @@ export const SecurityRegion: React.FC = () => {
       }));
     }
   }, [currentLoads, branchRatings, generatorLimits, additionalBranches]);
-  // Effect for initial load only
-  useEffect(() => {
-    // Initial fetch when component mounts
-    fetchData();
 
+  // Effect for initial load and recalculations
+  useEffect(() => {
+    fetchData();
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchData]); // Include fetchData in dependencies
+  }, [fetchData, triggerCalculation]); // Include triggerCalculation
 
-  // Event handlers - all changes require Calculate button
+  // Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
-    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleBranchRatingChange = useCallback((branchNum: number, value: number) => {
@@ -125,28 +124,23 @@ export const SecurityRegion: React.FC = () => {
       ...prev,
       [branchNum]: { ...prev[branchNum], rating: value }
     }));
-    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleGeneratorLimitsChange = useCallback((newLimits: GeneratorLimits) => {
     setGeneratorLimits(newLimits);
-    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleAddBranch = useCallback((newBranch: NewBranch) => {
     setAdditionalBranches(prev => [...prev, newBranch]);
-    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleRemoveBranch = useCallback((index: number) => {
     setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
-    // No automatic fetch - wait for Calculate button
   }, []);
 
-  // Calculate button handler - only way to trigger calculations
   const handleCalculate = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+    setTriggerCalculation(prev => prev + 1); // This will trigger the useEffect
+  }, []);
 
   // Loading state
   if (loadingState.isLoading && !data) {
