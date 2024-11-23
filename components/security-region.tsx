@@ -37,9 +37,7 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
   g3: { min: 0, max: 163 }
 };
 
-const INITIAL_POLL_INTERVAL = 1000; // 1 second
-const MAX_POLL_INTERVAL = 5000;     // 5 seconds
-const MAX_RETRIES = 5;
+const POLL_INTERVAL = 1000;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_HEADERS = {
   'Accept': 'application/json',
@@ -70,14 +68,13 @@ export const SecurityRegion: React.FC = () => {
     if (!mountedRef.current) return false;
   
     try {
+      // Set a short timeout for health check
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
   
       const response = await fetch(`${API_URL}/health`, {
         mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
-        },
+        headers: API_HEADERS,
         signal: controller.signal
       });
       
@@ -89,6 +86,9 @@ export const SecurityRegion: React.FC = () => {
       }
       return isReady;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Health check timed out');
+      }
       if (mountedRef.current) {
         setLoadingState(prev => ({ ...prev, isServerStarting: true }));
       }
@@ -169,43 +169,38 @@ export const SecurityRegion: React.FC = () => {
 
   // Server status polling effect
   useEffect(() => {
-    let mounted = true;
-    let retryCount = 0;
-    let currentInterval = INITIAL_POLL_INTERVAL;
-    let pollInterval: NodeJS.Timeout | null = null;
-  
     const initializeData = async () => {
-      if (!mounted) return;
+      if (!mountedRef.current) return;
       
       const isServerReady = await checkServerStatus();
       
-      if (!isServerReady && mounted) {
-        if (retryCount < MAX_RETRIES) {
-          pollInterval = setTimeout(async () => {
-            retryCount++;
-            currentInterval = Math.min(currentInterval * 1.5, MAX_POLL_INTERVAL);
-            initializeData();
-          }, currentInterval);
-        } else {
-          setLoadingState(prev => ({ 
-            ...prev, 
-            error: 'Server initialization timeout. Please refresh the page.' 
-          }));
-        }
-      } else if (mounted) {
+      if (!isServerReady && mountedRef.current) {
+        pollIntervalRef.current = setInterval(async () => {
+          if (!mountedRef.current) return;
+          
+          const ready = await checkServerStatus();
+          if (ready && mountedRef.current) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setShouldFetch(true);
+          }
+        }, POLL_INTERVAL);
+      } else if (mountedRef.current) {
         setShouldFetch(true);
       }
     };
-  
+
     initializeData();
-  
-    return () => {
-      mounted = false;
-      if (pollInterval) {
-        clearTimeout(pollInterval);
-      }
-    };
   }, [checkServerStatus]);
+
+  // Data fetching effect
+  useEffect(() => {
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [shouldFetch, fetchData]);
 
   // Event handlers
   const handleLoadChange = useCallback((newLoads: LoadData) => {
