@@ -168,7 +168,7 @@ export const SecurityRegion: React.FC = () => {
   }, []);
 
   // Server status polling effect
-  useEffect(() => {
+/*   useEffect(() => {
     const initializeData = async () => {
       if (!mountedRef.current) return;
       
@@ -195,6 +195,21 @@ export const SecurityRegion: React.FC = () => {
     initializeData();
   }, [checkServerStatus]);
 
+  // Data fetching effect
+  useEffect(() => {
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [shouldFetch, fetchData]); */
+
+  // Server status polling effect
+  useEffect(() => {
+    if (mountedRef.current) {
+      setShouldFetch(true);  // Directly trigger fetch without health check
+    }
+  }, []); // Empty dependency array since we only want this to run once
+
+  // Keep this part unchanged
   // Data fetching effect
   useEffect(() => {
     if (shouldFetch) {
