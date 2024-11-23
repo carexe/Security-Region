@@ -104,20 +104,20 @@ export const SecurityRegion: React.FC = () => {
       }));
     }
   }, [currentLoads, branchRatings, generatorLimits, additionalBranches]);
-  // Initial fetch effect
+  // Effect for initial load only
   useEffect(() => {
-    // Direct fetch on mount
+    // Initial fetch when component mounts
     fetchData();
 
-    // Cleanup
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchData]);
+  }, [fetchData]); // Include fetchData in dependencies
 
-  // Event handlers
+  // Event handlers - all changes require Calculate button
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
+    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleBranchRatingChange = useCallback((branchNum: number, value: number) => {
@@ -125,20 +125,25 @@ export const SecurityRegion: React.FC = () => {
       ...prev,
       [branchNum]: { ...prev[branchNum], rating: value }
     }));
+    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleGeneratorLimitsChange = useCallback((newLimits: GeneratorLimits) => {
     setGeneratorLimits(newLimits);
+    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleAddBranch = useCallback((newBranch: NewBranch) => {
     setAdditionalBranches(prev => [...prev, newBranch]);
+    // No automatic fetch - wait for Calculate button
   }, []);
 
   const handleRemoveBranch = useCallback((index: number) => {
     setAdditionalBranches(prev => prev.filter((_, i) => i !== index));
+    // No automatic fetch - wait for Calculate button
   }, []);
 
+  // Calculate button handler - only way to trigger calculations
   const handleCalculate = useCallback(() => {
     fetchData();
   }, [fetchData]);
