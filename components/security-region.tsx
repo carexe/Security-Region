@@ -37,9 +37,45 @@ const INITIAL_GENERATOR_LIMITS: GeneratorLimits = {
   g3: { min: 0, max: 163 }
 };
 
-// Memoized components for better performance
+// Memoized components with display names
 const MemoizedSecurityChart = React.memo(SecurityRegionChart);
+MemoizedSecurityChart.displayName = 'MemoizedSecurityChart';
+
 const MemoizedSingleLineDiagram = React.memo(SingleLineDiagram);
+MemoizedSingleLineDiagram.displayName = 'MemoizedSingleLineDiagram';
+
+// Interface for constraint component props
+interface ConstraintItemProps {
+  constraint: {
+    color: string;
+    description: string;
+    coefficients: {
+      a: number;
+      b: number;
+      c: number;
+    }
+  }
+}
+
+// Constraint component with display name
+const ConstraintItem = React.memo(function ConstraintItem({ constraint }: ConstraintItemProps) {
+  return (
+    <div 
+      className="p-2 rounded border"
+      style={{ borderColor: constraint.color }}
+    >
+      <p className="text-sm font-medium">
+        {formatConstraintDescription(constraint.description)}
+      </p>
+      <p className="text-xs text-gray-600">
+        {constraint.coefficients.a.toFixed(3)}·P_g2 + 
+        {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
+        {constraint.coefficients.c.toFixed(3)}
+      </p>
+    </div>
+  );
+});
+ConstraintItem.displayName = 'ConstraintItem';
 
 export function SecurityRegion() {
   // State management
@@ -52,9 +88,7 @@ export function SecurityRegion() {
   const [branchRatings, setBranchRatings] = useState<BranchRatings>(INITIAL_BRANCH_RATINGS);
   const [generatorLimits, setGeneratorLimits] = useState<GeneratorLimits>(INITIAL_GENERATOR_LIMITS);
   const [additionalBranches, setAdditionalBranches] = useState<NewBranch[]>([]);
-
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const checkServerStatus = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/health`, {
@@ -157,6 +191,7 @@ export function SecurityRegion() {
       mounted = false;
     };
   }, [checkServerStatus, fetchData]);
+
   // Event handlers with useCallback
   const handleLoadChange = useCallback((newLoads: LoadData) => {
     setCurrentLoads(newLoads);
@@ -186,29 +221,6 @@ export function SecurityRegion() {
       fetchData();
     }
   }, [calculating, fetchData]);
-
-  // Memoized constraint component
-  const ConstraintItem = React.memo(({ constraint }: { 
-    constraint: { 
-      color: string; 
-      description: string; 
-      coefficients: { a: number; b: number; c: number; } 
-    } 
-  }) => (
-    <div 
-      className="p-2 rounded border"
-      style={{ borderColor: constraint.color }}
-    >
-      <p className="text-sm font-medium">
-        {formatConstraintDescription(constraint.description)}
-      </p>
-      <p className="text-xs text-gray-600">
-        {constraint.coefficients.a.toFixed(3)}·P_g2 + 
-        {constraint.coefficients.b.toFixed(3)}·P_g3 ≤ 
-        {constraint.coefficients.c.toFixed(3)}
-      </p>
-    </div>
-  ));
 
   if (serverStarting) {
     return (
